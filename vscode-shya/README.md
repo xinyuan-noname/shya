@@ -59,11 +59,11 @@ never highlighted as `~` + `/`.
 ### From the packaged `.vsix`
 
 ```sh
-code --install-extension shya-0.2.0.vsix
+code --install-extension shya-0.2.1.vsix
 ```
 
 Or in VS Code: **Extensions** view → `…` menu → **Install from VSIX…** → pick
-`shya-0.2.0.vsix`.
+`shya-0.2.1.vsix`.
 
 ### From source
 

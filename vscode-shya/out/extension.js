@@ -112,83 +112,140 @@ async function formatDocument(editor) {
 /**
  * Runs the compiler over an arbitrary source text.
  *
- * The temporary copy is written **next to the original file**, because `import "./x.shya"`
- * resolves relative to the importing file — a copy in the system temp directory would break
- * every relative macro import.
+ * Two details matter here:
+ *
+ *  - The temporary copy is written **next to the original file**, because
+ *    `import "./x.shya"` resolves relative to the importing file — a copy in the system
+ *    temp directory would break every relative macro import.
+ *  - The `-o` target goes next to that copy as well, *not* into `os.tmpdir()`. We have
+ *    just written the source into that directory, so it is writable by construction;
+ *    asking the compiler to write into the system temp directory is a separate,
+ *    unchecked permission that can fail with "shya: cannot write …". If it still fails
+ *    we retry once with the output in the system temp directory, which covers a policy
+ *    that treats the two directories differently.
  */
-function compileText(document, text) {
-  const { compilerPath, buildArgs, outExtension } = configuration();
-  const originalPath = document.uri.fsPath;
-  const dir = path.dirname(originalPath);
-  const base = path.basename(originalPath, path.extname(originalPath));
-  const tmpSource = path.join(dir, `.shya-preview-${base}.shya`);
-  const tmpOutput = path.join(os.tmpdir(), `shya-preview-${process.pid}-${Date.now()}${outExtension}`);
-  const cwd = workingDirectoryFor(document.uri);
-  const args = buildArgs.concat([tmpSource, "-o", tmpOutput]);
+let compileSerial = 0;
 
+function uniqueName(base, stamp) {
+  return `.shya-preview-${base}-${stamp}`;
+}
+
+function spawnCompiler(compilerPath, args, cwd) {
   return new Promise((resolve) => {
-    const cleanup = () => {
-      try { fs.unlinkSync(tmpSource); } catch { /* already gone */ }
-      try { fs.unlinkSync(tmpOutput); } catch { /* already gone */ }
-    };
-
-    try {
-      fs.writeFileSync(tmpSource, text, "utf8");
-    } catch (err) {
-      cleanup();
-      resolve({ ok: false, code: -1, js: "", diagnosticsText: `could not write ${tmpSource}: ${err.message}`, command: "" });
-      return;
-    }
-
-    // Show the compiler invocation with the real path, never the temporary copy.
-    const command = `${compilerPath} ${args
-      .map((a) => (a === tmpSource ? originalPath : a))
-      .join(" ")}`;
     let child;
     try {
       child = cp.spawn(compilerPath, args, { cwd, windowsHide: true });
     } catch (err) {
-      cleanup();
-      resolve({
-        ok: false, code: -1, js: "",
-        diagnosticsText: `could not run the compiler (${err.message}).\n${quotingHint({ code: "ENOENT" }, compilerPath)}`,
-        command,
-      });
+      resolve({ code: -1, stdout: "", stderr: "", spawnError: err });
       return;
     }
-
     const stdout = [];
     const stderr = [];
     let settled = false;
     const finish = (code, spawnError) => {
       if (settled) return;
       settled = true;
-
-      let js = "";
-      try { js = fs.readFileSync(tmpOutput, "utf8"); } catch { /* failed compile */ }
-
-      // Diagnostics point at the temporary copy; rewrite them onto the real file.
-      const rewrite = (s) =>
-        s
-          .split(tmpSource).join(originalPath)
-          .split(tmpSource.replace(/\\/g, "/")).join(originalPath);
-
-      let text = rewrite(Buffer.concat(stderr).toString("utf8"));
-      if (spawnError) {
-        text = `could not run "${compilerPath}": ${spawnError.message}\n${quotingHint(spawnError, compilerPath)}`;
-      }
-      const outText = rewrite(Buffer.concat(stdout).toString("utf8"));
-      if (!text.trim() && outText.trim()) text = outText;
-
-      cleanup();
-      resolve({ ok: code === 0 && !spawnError, code: typeof code === "number" ? code : -1, js, diagnosticsText: text, command });
+      resolve({
+        code: typeof code === "number" ? code : -1,
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: Buffer.concat(stderr).toString("utf8"),
+        spawnError: spawnError || null,
+      });
     };
-
     if (child.stdout) child.stdout.on("data", (c) => stdout.push(Buffer.from(c)));
     if (child.stderr) child.stderr.on("data", (c) => stderr.push(Buffer.from(c)));
     child.on("error", (err) => finish(-1, err));
     child.on("close", (code) => finish(typeof code === "number" ? code : -1, null));
   });
+}
+
+async function compileOnce(document, text, outDir) {
+  const { compilerPath, buildArgs, outExtension } = configuration();
+  const originalPath = document.uri.fsPath;
+  const sourceDir = path.dirname(originalPath);
+  const base = path.basename(originalPath, path.extname(originalPath));
+  const stamp = `${process.pid}-${Date.now()}-${(compileSerial += 1)}`;
+  const tmpSource = path.join(sourceDir, uniqueName(base, stamp) + ".shya");
+  const tmpOutput = path.join(outDir, uniqueName(base, stamp) + (outExtension || ".mjs"));
+  const cwd = workingDirectoryFor(document.uri);
+  const args = buildArgs.concat([tmpSource, "-o", tmpOutput]);
+
+  const unlink = (p) => {
+    try { fs.unlinkSync(p); } catch { /* already gone */ }
+  };
+  const cleanup = () => {
+    unlink(tmpSource);
+    unlink(tmpOutput);
+  };
+
+  try {
+    fs.writeFileSync(tmpSource, text, "utf8");
+  } catch (err) {
+    cleanup();
+    return {
+      ok: false, code: -1, js: "", command: "", canRetryElsewhere: false,
+      diagnosticsText:
+        `shya: 无法写入临时文件 ${tmpSource}\n${err && err.message ? err.message : err}\n\n` +
+        `源文件所在目录不可写。请把文件保存到可写位置，或检查该目录的权限。`,
+    };
+  }
+
+  // Display the compiler invocation in terms of the real file, never the temporary copy.
+  // Both the temp source *and* the temp output would otherwise leak into the panel.
+  const shownOutput = originalPath.replace(/\.shya$/i, "") + (outExtension || ".mjs");
+  const shownArgs = args.map((a) => {
+    if (a === tmpSource) return originalPath;
+    if (a === tmpOutput) return shownOutput;
+    return a;
+  });
+  const command = `${compilerPath} ${shownArgs.join(" ")}`;
+  const { code, stdout, stderr, spawnError } = await spawnCompiler(compilerPath, args, cwd);
+
+  let js = "";
+  try { js = fs.readFileSync(tmpOutput, "utf8"); } catch { /* compile failed */ }
+
+  const rewrite = (s) =>
+    String(s)
+      .split(tmpSource).join(originalPath)
+      .split(tmpSource.replace(/\\/g, "/")).join(originalPath);
+
+  let diagnosticsText = rewrite(stderr);
+  const outText = rewrite(stdout);
+  if (!diagnosticsText.trim() && outText.trim()) diagnosticsText = outText;
+  if (spawnError) {
+    diagnosticsText = `shya: could not run "${compilerPath}": ${spawnError.message}\n${quotingHint(spawnError, compilerPath)}`;
+  }
+
+  const cannotWrite =
+    code !== 0 && !spawnError && /cannot write/i.test(stderr) && stderr.includes(tmpOutput);
+
+  cleanup();
+  return {
+    ok: code === 0 && !spawnError,
+    code,
+    js: rewrite(js),
+    diagnosticsText,
+    command,
+    // The compiler could not write where we asked; the caller retries elsewhere.
+    canRetryElsewhere: cannotWrite && outDir !== os.tmpdir(),
+  };
+}
+
+async function compileText(document, text) {
+  const sourceDir = path.dirname(document.uri.fsPath);
+  const first = await compileOnce(document, text, sourceDir);
+  if (!first.canRetryElsewhere) return first;
+
+  const second = await compileOnce(document, text, os.tmpdir());
+  if (second.ok || !/cannot write/i.test(second.diagnosticsText)) {
+    if (!second.ok) {
+      second.diagnosticsText +=
+        `\n\n提示：编译器既写不进源文件所在目录，也写不进系统临时目录 ` +
+        `${os.tmpdir()}。请检查两个目录的写入权限（安全软件/受控文件夹访问经常会拦这个）。`;
+    }
+    return second;
+  }
+  return first;
 }
 
 /** `file:line:col: severity: message [CODE]` -> VS Code diagnostics. */
@@ -276,15 +333,21 @@ function previewHtml(document, result) {
 <body>
 <h1>${escapeHtml(name)} ${status}${counts}</h1>
 <div class="meta">${escapeHtml(result.command)}</div>
+<div class="meta">预览编译的是内存中的临时副本（写在同一目录，以便相对导入能解析），不会改动或覆盖你的文件。</div>
 ${diagnosticsBlock}
 ${codeBlock}
 </body>
 </html>`;
 }
 
+/** Bumped on every compile so a slow, superseded run cannot overwrite a newer panel. */
+let compileGeneration = 0;
+
 async function refreshPreview(document, options) {
-  if (!preview || preview.uri.toString() !== document.uri.toString()) return;
+  if (!preview || preview.uri.toString() !== document.uri.toString()) return undefined;
+  const generation = (compileGeneration += 1);
   const result = await compileText(document, document.getText());
+  if (generation !== compileGeneration) return result; // superseded by a newer compile
   publishDiagnostics(document, result.diagnosticsText);
   if (preview && preview.panel) {
     preview.panel.webview.html = previewHtml(document, result);
@@ -309,6 +372,7 @@ function scheduleRefresh(document) {
 
 function disposePreview() {
   if (!preview) return;
+  compileGeneration += 1; // any in-flight compile is now stale
   if (preview.timer) clearTimeout(preview.timer);
   preview = undefined;
 }

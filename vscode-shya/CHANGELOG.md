@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.1
+
+Fixes a preview failure reported in the wild:
+
+```
+shya: cannot write `C:\Users\…\AppData\Local\Temp\shya-preview-….mjs`
+```
+
+- The preview used to ask the compiler to write its output into `os.tmpdir()`. That is a
+  separate, unchecked permission from the one used to write the temporary source, and when
+  the compiler could not write there the whole preview failed. The output now goes **next to
+  the temporary source**, in the directory we have just successfully written to.
+- If the compiler still cannot write there, the preview retries once with the output in the
+  system temp directory, and if both fail it explains which two directories were tried.
+- Temporary file names are now unique per compile (they include a serial number), so rapid
+  typing can no longer make two compiles fight over the same path.
+- A compile that is superseded by a newer one no longer overwrites the panel.
+- The panel's command line showed the temporary `.mjs` output path; it now shows the real
+  file name, and the generated code's banner no longer leaks the temporary source path.
+
 ## 0.2.0
 
 Formatter and a combined format-and-preview command.

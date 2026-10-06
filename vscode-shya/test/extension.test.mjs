@@ -7,7 +7,8 @@
 // publishes) and the "compiler not runnable" path. `child_process.spawn` is faked so
 // nothing real has to be installed.
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Module from "node:module";
@@ -15,6 +16,7 @@ import Module from "node:module";
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
 const extDir = resolve(here, "..");
+const tmpRoot = tmpdir();
 
 const sandbox = join(extDir, ".test-tmp");
 rmSync(sandbox, { recursive: true, force: true });
@@ -22,9 +24,11 @@ const projectDir = join(sandbox, "proj");
 mkdirSync(projectDir, { recursive: true });
 const mainPath = join(projectDir, "a.shya");
 writeFileSync(mainPath, "let a=1\n");
-// A second file, so the failure-path test gets its own preview panel.
+// A second and third file, so each preview test gets its own panel.
 const secondPath = join(projectDir, "b.shya");
 writeFileSync(secondPath, "let b=1\n");
+const thirdPath = join(projectDir, "c.shya");
+writeFileSync(thirdPath, "let c=1\n");
 
 const state = {
   messages: [],
@@ -246,10 +250,28 @@ const fakeCp = {
       setImmediate(() => listeners.error && listeners.error(nextExit.error));
       return child;
     }
-    // Materialise the -o output so the extension can read it back.
     const outIndex = args.indexOf("-o");
-    if (outIndex >= 0 && args[outIndex + 1]) {
-      writeFileSync(args[outIndex + 1], nextExit.js, "utf8");
+    const outPath = outIndex >= 0 ? args[outIndex + 1] : "";
+    // Simulate a compiler that cannot write into a given directory.
+    if (nextExit.failOutputDir && String(outPath).startsWith(nextExit.failOutputDir)) {
+      const handlers = { stdout: [], stderr: [], close: [], error: [] };
+      const child = {
+        stdout: { on: (n, h) => n === "data" && handlers.stdout.push(h) },
+        stderr: { on: (n, h) => n === "data" && handlers.stderr.push(h) },
+        on(name, h) {
+          handlers[name].push(h);
+          return this;
+        },
+      };
+      setImmediate(() => {
+        for (const h of handlers.stderr) h(Buffer.from(`shya: cannot write \`${outPath}\`\n`));
+        for (const h of handlers.close) h(1);
+      });
+      return child;
+    }
+    // Materialise the -o output so the extension can read it back.
+    if (outPath) {
+      writeFileSync(outPath, nextExit.js, "utf8");
     }
     const handlers = { stdout: [], stderr: [], close: [], error: [] };
     const child = {
@@ -372,9 +394,15 @@ eq("registers a formatting provider for shya", state.formattingProviders.map((p)
 
   const spawned = state.spawns[0];
   const sourceArg = spawned.args[1];
+  const outputArg = spawned.args[3];
   eq("compiles a temporary copy next to the original (so relative imports resolve)", dirname(sourceArg), projectDir);
-  ok("temporary source is named for the original", /\.shya-preview-a\.shya$/.test(sourceArg), sourceArg);
+  ok("temporary source is named for the original", /\.shya-preview-a-\d+-\d+-\d+\.shya$/.test(sourceArg), sourceArg);
+  eq("writes the output next to the source, not into the system temp dir", dirname(outputArg), projectDir);
   ok("temporary source is cleaned up", !existsSync(sourceArg), sourceArg);
+  ok("temporary output is cleaned up", !existsSync(outputArg), outputArg);
+  ok("no preview mentions the temporary paths",
+    !/\.shya-preview-/.test(state.panels[0]._html) && !state.panels[0]._html.includes(tmpRoot),
+    state.panels[0]._html.slice(0, 400));
 }
 
 /* --- failure path: diagnostics are published and shown in the panel --- */
@@ -430,6 +458,40 @@ eq("registers a formatting provider for shya", state.formattingProviders.map((p)
   ok("missing compiler is reported, not thrown",
     state.messages.some((m) => /could not run|ENOENT|compilerPath/.test(m)),
     state.messages.slice(-4).join("\n"));
+}
+
+/* --- fallback: a compiler that cannot write into the source directory --- */
+
+{
+  nextExit = {
+    code: 0,
+    stderr: "",
+    stdout: "",
+    js: "// fallback ok\n",
+    error: null,
+    failOutputDir: projectDir, // refuse to write beside the source
+  };
+  state.spawns.length = 0;
+  state.panels.length = 0;
+  const doc = makeDocument("let c = 1\n", thirdPath);
+  vscode.window.activeTextEditor = { document: doc };
+
+  await vscode.commands.executeCommand("shya.formatAndPreview");
+  await tick();
+
+  eq("retries once when the compiler cannot write beside the source", state.spawns.length, 2);
+  eq("first attempt wrote beside the source", dirname(state.spawns[0].args[3]), projectDir);
+  eq("retry writes into the system temp directory", dirname(state.spawns[1].args[3]), tmpRoot);
+  ok("the retry succeeded and the panel shows its output",
+    state.panels.length === 1 && state.panels[0]._html.includes("fallback ok"),
+    state.panels.length ? state.panels[0]._html.slice(0, 200) : "no panel");
+  ok("no .shya-preview leftovers beside the source",
+    readdirSync(projectDir).every((f) => !f.startsWith(".shya-preview-")),
+    readdirSync(projectDir).join(", "));
+  ok("no .shya-preview leftovers in the temp directory",
+    readdirSync(tmpRoot).every((f) => !f.startsWith(".shya-preview-")),
+    readdirSync(tmpRoot).filter((f) => f.startsWith(".shya-preview-")).join(", "));
+  nextExit.failOutputDir = null;
 }
 
 /* --- cleanup --- */
