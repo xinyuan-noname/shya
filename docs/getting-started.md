@@ -438,6 +438,39 @@ shya: check failed with 1 error(s)
 
 未声明的标识符只是警告，所以在 shya 里直接用宿主的全局量是没问题的。
 
+### 写不出文件时
+
+`shya: cannot write` 后面会跟三行，**先看 `reason`**：
+
+```
+shya: cannot write `./first.mjs`
+  resolved to: D:\project\shya-coding\first.mjs      ← 相对路径解析后的绝对位置
+  reason: Permission denied                          ← 操作系统给的原因
+  the directory is not writable by this process, or a policy denies the write
+  (this is a property of where the program runs from and where it writes, not of the source file)
+```
+
+| `reason` | 含义 | 怎么办 |
+| --- | --- | --- |
+| `No such file or directory` | 目标目录不存在 | 建目录，或用 `-o` 指到已有目录 |
+| `Permission denied` | 这个进程不许写这里 | 见下 |
+| 其它 | 磁盘满、路径过长等 | 按字面意思处理 |
+
+遇到 `Permission denied` 时，**先怀疑编译器可执行文件所在的位置**，而不是文件权限：
+
+从某个被沙箱/受限策略管辖的目录里启动的程序，可能只能写回该目录内部。实测过：同一个
+`shya.exe`（哈希逐字节相同）在 `D:\project\shya\build\` 里写不进别的项目目录，复制到
+`C:\tools\shya\` 后立刻正常。`shya.exe` 是单文件、无依赖，复制即可用：
+
+```powershell
+New-Item -ItemType Directory -Force C:\tools\shya
+Copy-Item D:\project\shya\build\shya.exe C:\tools\shya\shya.exe
+C:\tools\shya\shya.exe build 你的文件.shya
+```
+
+想确认不是权限问题，可以拿别的程序在同一目录里试写：`cmd /c "echo x > probe.txt"`。
+如果它也失败，那才是真的目录权限问题。
+
 ---
 
 ## 9. 五条思维模型（省掉 90% 的困惑）

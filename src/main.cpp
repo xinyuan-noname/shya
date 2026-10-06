@@ -1,7 +1,11 @@
 // shya - command line interface and the compile pipeline.
 #include "shya.h"
 
+#include <cerrno>
+#include <cstring>
+#include <filesystem>
 #include <fstream>
+#include <system_error>
 
 namespace shya {
 
@@ -19,11 +23,47 @@ std::string readFile(const std::string& path, bool& ok) {
     return ss.str();
 }
 
-bool writeFile(const std::string& path, const std::string& data) {
+// Writes `data` to `path`, reporting the OS level reason in `why` when it cannot.
+//
+// `errno` is captured immediately after the failing operation: without it the caller can
+// only say "cannot write", which is indistinguishable from a wrong path and sends people
+// hunting through the path arithmetic instead of at the permissions or the policy that
+// actually refused the write.
+bool writeFile(const std::string& path, const std::string& data, std::string& why) {
+    errno = 0;
     std::ofstream out(path, std::ios::binary);
-    if (!out) return false;
+    if (!out) {
+        const int e = errno;
+        why = e != 0 ? std::strerror(e) : "the file could not be opened";
+        return false;
+    }
+    errno = 0;
     out.write(data.data(), static_cast<std::streamsize>(data.size()));
-    return static_cast<bool>(out);
+    out.close();
+    if (!out) {
+        const int e = errno;
+        why = e != 0 ? std::strerror(e) : "the data could not be written";
+        return false;
+    }
+    return true;
+}
+
+/// The absolute path the OS will actually try to open, for error messages.
+std::string absoluteOf(const std::string& path) {
+    std::error_code ec;
+    std::filesystem::path abs = std::filesystem::absolute(path, ec);
+    return ec ? path : abs.lexically_normal().string();
+}
+
+/// Extra guidance for the errors that are actually actionable.
+std::string writeHint(const std::string& path) {
+    std::error_code ec;
+    const std::filesystem::path parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty() && !std::filesystem::exists(parent, ec)) {
+        return "  the directory " + parent.string() + " does not exist (create it, or pass -o)\n";
+    }
+    return std::string("  the directory is not writable by this process, or a policy denies the write\n") +
+           "  (this is a property of where the program runs from and where it writes, not of the source file)\n";
 }
 
 std::string dirOf(const std::string& path) {
@@ -199,7 +239,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (command == "version" || command == "--version" || command == "-v") {
-        std::puts("shya 1.0.0 (ES2026 backend)");
+        std::puts("shya 1.0.1 (ES2026 backend)");
         return 0;
     }
 
@@ -259,6 +299,7 @@ int main(int argc, char** argv) {
     std::string source = readFile(input, ok);
     if (!ok) {
         std::fprintf(stderr, "shya: cannot read `%s`\n", input.c_str());
+        std::fprintf(stderr, "  resolved to: %s\n", absoluteOf(input).c_str());
         return 1;
     }
     if (source.size() >= 3 && static_cast<unsigned char>(source[0]) == 0xEF &&
@@ -306,8 +347,12 @@ int main(int argc, char** argv) {
         output += (command == "run") ? ".mjs" : ".mjs";
     }
 
-    if (!writeFile(output, result.code)) {
+    std::string why;
+    if (!writeFile(output, result.code, why)) {
         std::fprintf(stderr, "shya: cannot write `%s`\n", output.c_str());
+        std::fprintf(stderr, "  resolved to: %s\n", absoluteOf(output).c_str());
+        std::fprintf(stderr, "  reason: %s\n", why.c_str());
+        std::fputs(writeHint(output).c_str(), stderr);
         return 1;
     }
     if (!quiet) std::fprintf(stderr, "shya: wrote %s (%zu bytes)\n", output.c_str(),
