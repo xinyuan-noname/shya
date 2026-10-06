@@ -80,7 +80,13 @@
 插槽类型写在宏参数上：
 
 ```shya
-macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) { ... }
+macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+  if #cond {
+    #yes
+  } else {
+    #no
+  }
+}
 ```
 
 `astKindTable()` 是完整名单。**表里的名字全部是小写**，而 `nodeKindName()` 打印的是
@@ -94,14 +100,14 @@ CamelCase，两者不是同一个东西：`NK::Binary` 的节点种类名是 `bi
 | 类型名 | 接受的实参 | 含义 | 例子 |
 | --- | --- | --- | --- |
 | `expr` | 任何表达式（默认值，不写标注就是这个） | 需要一个值 | `macro @twice(#x) { #x + #x }` |
-| `stmt` | 任何语句；**表达式会自动包成 `ExprStmt`**；可以缺省（渲染成空） | 需要一条语句 | `@swapIf(a < 2, console log("y"), console log("n"))` |
+| `stmt` | 任何语句；**表达式自动包成 `ExprStmt`**；可缺省（渲染成空） | 需要一条语句 | `@swapIf(a < 2, console log("y"), console log("n"))` |
 | `type` | 类型标注（`TypeRef` 或写成型名的表达式） | 需要一个类型名 | `macro @cast(#t: type) { ... }` |
 | `expr[]` | 只接受不定项插槽 `...#name` 收集到的列表 | 变长参数 | `macro @m(#x, ...#rest: expr[])` |
 | `callExpr` | 调用片段：`NK::Call`，或写成 `@safe` / `@safe_share` 的 `MacroApply` | 需要 `f(args)` 形状 | `@share` 的 `...#slots: callExpr` |
-| `safeCallExpr` | 带 `?.` 的调用片段 | 需要安全调用 | `@safe` 的 `...#slots: callExpr` 配合 `@when(#slot is safeCallExpr)` |
+| `safeCallExpr` | 带 `?.` 的调用片段 | 需要安全调用 | 配合 `@when(#slot is safeCallExpr)` 使用 |
 
-`callExpr` 与 `safeCallExpr` 在绑定检查上互相放宽（`typeMatches()` 允许二者互换，
-`expr` 也总是通过），真正区分它们的是**宏体里的 `@when`**：`@safe` 就是靠
+`callExpr` 与 `safeCallExpr` 在绑定检查上互相放宽（`typeMatches()` 允许二者互换，`expr` 也
+总是通过），真正区分它们的是**宏体里的 `@when`**：`@safe` 就是靠
 `@when(#slot is safeCallExpr)` 决定要不要插 `?`。
 
 ### 2.2 AST 节点种类名（`astKindTable()` 全表）
@@ -155,15 +161,11 @@ CamelCase，两者不是同一个东西：`NK::Binary` 的节点种类名是 `bi
 表结构是 `name → vector<NK>`，所以一个类型名可以对应多个 `NK`；当前表里每个名字恰好一个。
 
 **实参面的限制**：类型名可标注不等于「随便怎么传都能传进去」。实参由
-`parseRangeOrExpr` / `parseTernary` 解析，下面这些名字**在语法上无法提供实参**：
-
-| 类型名 | 为什么不给传 |
-| --- | --- |
-| `declareStmt` / `importStmt` / `exportStmt` | 这些语句不以表达式开头，括号实参里直接 `SYN001` |
-| `exprStmt` | `ExprStmt` 只由 `stmt` 插槽自动包出来（`parseStatement` 的产物），没有对应写法 |
-| `decl` | 变量声明只能整行出现；`let x = 1` 在实参位置解析成 `Ident` |
-| `caseArm` | 分支只能在 `case { }` 里出现；具名插槽给的是整个 `Block` |
-| `incDec` | `++` / `--` 只能作为语句，不构成表达式 |
+`parseRangeOrExpr` / `parseTernary` 解析，所以这些名字**在语法上无法提供实参**：
+`declareStmt` / `importStmt` / `exportStmt`（不以表达式开头，括号实参里直接 `SYN001`）、
+`exprStmt`（只由 `stmt` 插槽自动包出来，没有对应写法）、`decl`（变量声明只能整行出现，
+`let x = 1` 在实参位置解析成 `Ident`）、`caseArm`（分支只能在 `case { }` 里出现，
+具名插槽给的是整个 `Block`）、`incDec`（`++` / `--` 不构成表达式）。
 
 需要它们时改用 `stmt` 插槽：`stmt` 会自动把表达式包成 `ExprStmt`，也可以用具名插槽块
 传多行语句。`declare` 走具名插槽是可行的：
@@ -243,12 +245,21 @@ want = 右侧标识符文本
 
 ### 4.1 为什么字面量的种类名是 `strLit` / `numLit` / …
 
-`string`、`number`、`boolean`、`void` 在 ② 里已经被**值类型**占用了
-（`array`、`object`、`map`、`set`、`fn`、`unknown` 同理），它们的**节点种类**名必须换一套
-拼写，否则 `@when(#x is string)` 会有两个互相冲突的含义。于是 `Str` 叫 `strLit`、
-`Num` 叫 `numLit`、`Bool` 叫 `boolLit`、`Void` 叫 `voidLit`；`Tpl` 与 `MathConst` 没有
-冲突对象，但沿用同一族的 `tplLit` / `mathLit`。
+`string`、`number`、`boolean` 在 ② 里已经被**值类型**占用了（`void`、`array`、`object`、
+`map`、`set`、`fn`、`unknown` 同理）。如果节点种类也叫 `string`，`@when(#x is string)`
+就会有两个互相冲突的含义：**静态类型是字符串**和**实参是字符串字面量**。
+所以节点种类必须换一套拼写，全部以 `Lit` 收尾，避开所有值类型名：
 
+| 值类型（②） | 节点种类（③） | `NK` |
+| --- | --- | --- |
+| `string` | `strLit` | `Str` |
+| `number` | `numLit` | `Num` |
+| `boolean` | `boolLit` | `Bool` |
+| `void` | `voidLit` | `Void` |
+| ——（无冲突） | `tplLit` | `Tpl` |
+| ——（无冲突） | `mathLit` | `MathConst` |
+
+`mathLit` 没有冲突对象，但它和 `strLit` / `numLit` 一样以 `Lit` 收尾，保持一族拼写。
 判断的差别是实打实的：
 
 ```shya

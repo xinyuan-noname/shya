@@ -18,11 +18,10 @@
 **序列/字符串/内置函数**几乎都有对应的宏（`@len`、`@sum`、`@sorted`、`@upper`…，
 集中在 `lib/pystd.shya`）；**空值只有一个** `void`。
 
-明显不同的地方：**静态类型**（`TC***` 诊断，`any` / `unknown` 是逃逸舱）；
-**一切皆是函数**（`player hp` 编译成 `player.hp()`，属性读取要靠 `declare` 或 `@ts`）；
-**没有类**（宿主对象用 `declare` 声明形状）；**没有位运算**（`^` 是乘方）；
-**`/` 之外还有四种取整除法**（`//` 要写成 `-/`，不是 `~/`）；**宏是编译期的**，
-能按实参的静态类型分派（`@when`），这在 Python 里没有对应物。
+明显不同的地方：**静态类型**（`TC***` 诊断，`any` / `unknown` 是逃逸舱）；**一切皆是函数**
+（`player hp` 编译成 `player.hp()`，属性读取要靠 `declare` 或 `@ts`）；**没有类**（宿主对象用
+`declare` 声明形状）；**没有位运算**（`^` 是乘方）；**`/` 之外还有四种取整除法**（`//` 要写成
+`-/`，不是 `~/`）；**宏是编译期的**，能按实参的静态类型分派（`@when`），Python 里没有对应物。
 
 ---
 
@@ -190,7 +189,7 @@ declare fn hostRandom(max: number): number
 | 方法 `judge(): T` | `p judge` | `p.judge()`（**函数调用**） |
 | 宿主函数 `declare fn` | `hostRandom(6)` | `hostRandom(6)`，参数个数与类型受检查 |
 
-对照 `tests/cases/14-declare.shya`：
+`tests/cases/14-declare.shya` 里的对应关系（左侧是写法，右侧是产物）：
 
 ```shya
 fn main() {
@@ -214,14 +213,8 @@ fn main() {
 
 ### 3.1 `%` 的符号
 
-JS / shya 的 `%` **结果符号跟随被除数**，Python 跟随除数。负数时结论相反：
-
-```shya
-console log(-7 % 3)          // -1
-console log((-7) @mod(3))    // 2
-console log(7 % 3)           // 1
-```
-
+JS / shya 的 `%` **结果符号跟随被除数**，Python 跟随除数：
+`-7 % 3` 得 `-1`、`7 % 3` 得 `1`，而 `(-7) @mod(3)` 得 `2`。
 `@mod(a, b)` 的定义就是 `((a % b) + b) % b`，即 Python 语义。
 
 **必须写 `(-7) @mod(3)`，不能写 `-7 @mod(3)`。** 后缀宏的优先级比一元负号高，
@@ -232,7 +225,7 @@ console log((-7) @mod(3))    // 2
 console log(-7 @mod(3))      // -1       即 -(7 % 3) = -(1)
 ```
 
-实测（`tests/cases/12-py-macros.shya` 第 41 行就是这么写的）：
+`tests/cases/12-py-macros.shya` 第 41 行就是这么写的，实测输出：
 
 ```
 mod paren 2
@@ -266,40 +259,27 @@ console log(o["a"])          // 1
 ```
 
 **已知不一致（模板字符串里的字段）**：`declare` 字段在普通表达式里编译成属性读取，
-但在模板字符串的 `${}` 里会被编译成调用。实测：
+但在模板字符串的 `${}` 里会被编译成调用：
 
 ```shya
 declare Player { name: string }
 
-console log(p name)          // -> console.log(p.name)        正确
-console log("" + p name)     // -> console.log("" + p.name)   正确
+console log(p name)          // -> console.log(p.name)          正确
 console log(`x ${p name}`)   // -> console.log(`x ${p.name()}`)  ← 会抛 TypeError
 ```
 
-模板字符串里读 `declare` 字段请先取到变量，或直接用 `@ts`：
-
-```shya
-let n = p name
-console log(`x ${n}`)
-console log(`y ${@ts{p.name}}`)
-console log(`z ${p["name"]}`)
-```
+模板字符串里读 `declare` 字段请先取到变量，或直接用 `@ts` 或下标：
+`let n = p name` 然后 `` `x ${n}` ``；或者 `` `y ${@ts{p.name}}` ``；或者 `` `z ${p["name"]}` ``。
 
 ### 3.3 换行是语句分隔符
 
 分号可省，**换行就是语句边界**：`console log(1)` 换行 `console log(2)` 是两条语句，
-而不是 `console.log(1).log(2)`。由此产生三条不能折行的规则：
+而不是 `console.log(1).log(2)`。由此产生三条不能折行的规则：**成员访问不跨行**
+（`a` 换行 `b` 是两条语句，不是 `a.b()`）；**宏的无括号插槽参数不跨行**
+（`x @safe a(1)` 换行 `b(2)` 时第二行是新语句）；**`@each` / `@when` 拼接线不跨行**
+（宏模板里 `#x @each(...)` 必须在同一行）。
 
-1. **成员访问不跨行**。`a` 换行 `b` 是两条语句，不是 `a.b()`。
-2. **宏的无括号插槽参数不跨行**。`x @safe a(1)` 换行 `b(2)` 时，第二行是新语句。
-3. **`@each` / `@when` 拼接线不跨行**。宏模板里 `#x @each(...)` 必须在同一行。
-
-所以不能像 Python 那样把长表达式拆行：
-
-```python
-total = (a + b
-         + c)
-```
+所以不能像 Python 那样把长表达式拆行（Python 的 `total = (a + b` 换行 `+ c)` 合法）：
 
 ```shya
 total = a + b
