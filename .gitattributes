@@ -1,0 +1,16 @@
+# Normalise line endings so the repository is identical on Windows and Unix.
+* text=auto eol=lf
+
+# Windows batch files must keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# shya sources are portable; keep LF.
+*.shya text eol=lf
+
+# Binaries.
+*.vsix binary
+*.exe binary
+*.png binary
+*.jpg binary
+*.mp3 binary
