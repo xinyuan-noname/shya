@@ -1,0 +1,2 @@
+// 设计稿点名：`~dege` 是错误写法（`~deg` 需要一个数值参数）
+console log(~dege)

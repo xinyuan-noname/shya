@@ -1,0 +1,181 @@
+// pystd —— 面向 Python 用户的宏集合
+//
+// 用法（和其它模块的导入方式完全一致）：
+//     import { @enumerate, @zip, @sum } from "../lib/pystd.shya"
+//     import "./pystd.shya"                       // 导入全部
+//
+// 所有宏都在编译期展开成原生 JS，产物不需要任何运行时。
+// 逐条对照见 docs/python-users.md。
+
+// ---------------------------------------------------------------- 序列 ---
+
+// for i, v of @enumerate(seq)
+macro @enumerate(#seq) {
+  @ts{Array.from(#seq).map((v, i) => [i, v])}
+}
+
+// for a, b of @zip(xs, ys)
+macro @zip(#a, #b) {
+  @ts{Array.from(#a).map((v, i) => [v, Array.from(#b)[i]])}
+}
+
+// for k, v of @items(dict)
+macro @items(#d) {
+  @ts{Object.entries(#d)}
+}
+
+macro @count(#seq) {
+  @ts{Array.from(#seq).length}
+}
+
+macro @first(#seq) {
+  @ts{Array.from(#seq)[0]}
+}
+
+macro @last(#seq) {
+  @ts{Array.from(#seq).at(-1)}
+}
+
+macro @sum(#seq) {
+  @ts{Array.from(#seq).reduce((__a, __b) => __a + __b, 0)}
+}
+
+macro @max(#seq) {
+  @ts{Math.max(...Array.from(#seq))}
+}
+
+macro @min(#seq) {
+  @ts{Math.min(...Array.from(#seq))}
+}
+
+// Python 的 sorted()：返回新序列，不改原序列
+macro @sorted(#seq) {
+  @ts{Array.from(#seq).sort((__a, __b) => (__a > __b) - (__a < __b))}
+}
+
+macro @reversed(#seq) {
+  @ts{Array.from(#seq).toReversed()}
+}
+
+macro @unique(#seq) {
+  @ts{[...new Set(Array.from(#seq))]}
+}
+
+// 空序列为 False，与 Python 一致
+macro @any(#seq) {
+  @ts{Array.from(#seq).some(Boolean)}
+}
+
+macro @all(#seq) {
+  @ts{Array.from(#seq).every(Boolean)}
+}
+
+macro @join(#seq, #sep) {
+  @ts{Array.from(#seq).join(#sep)}
+}
+
+// ---------------------------------------------------------------- 字符串 ---
+
+macro @upper(#s) {
+  @ts{#s.toUpperCase()}
+}
+
+macro @lower(#s) {
+  @ts{#s.toLowerCase()}
+}
+
+macro @strip(#s) {
+  @ts{#s.trim()}
+}
+
+macro @split(#s, #sep) {
+  @ts{#s.split(#sep)}
+}
+
+macro @replace(#s, #from, #to) {
+  @ts{#s.replaceAll(#from, #to)}
+}
+
+macro @startswith(#s, #prefix) {
+  @ts{#s.startsWith(#prefix)}
+}
+
+macro @endswith(#s, #suffix) {
+  @ts{#s.endsWith(#suffix)}
+}
+
+// Python 的 find()：找不到返回 -1
+macro @find(#s, #sub) {
+  @ts{#s.indexOf(#sub)}
+}
+
+// ---------------------------------------------------------------- 数值 ---
+
+macro @abs(#n) {
+  @ts{Math.abs(#n)}
+}
+
+macro @round(#n) {
+  @ts{Math.round(#n)}
+}
+
+// Python 的 int()：向零截断
+macro @int(#n) {
+  @ts{Math.trunc(Number(#n))}
+}
+
+macro @float(#n) {
+  @ts{Number(#n)}
+}
+
+macro @pow(#a, #b) {
+  @ts{(#a) ** (#b)}
+}
+
+// Python 的 %：结果符号跟随除数（JS 的 % 跟随被除数）
+macro @mod(#a, #b) {
+  @ts{((#a % #b) + #b) % #b}
+}
+
+macro @clamp(#n, #lo, #hi) {
+  @ts{Math.min(Math.max(#n, #lo), #hi)}
+}
+
+// ---------------------------------------------------------------- 转换 ---
+
+macro @str(#x) {
+  @ts{String(#x)}
+}
+
+macro @bool(#x) {
+  @ts{Boolean(#x)}
+}
+
+macro @typeOf(#x) {
+  @ts{typeof #x}
+}
+
+macro @repr(#x) {
+  @ts{JSON.stringify(#x)}
+}
+
+// ------------------------------------------------- 依赖其它宏（传递导入） ---
+//
+// 这两个宏用到了上面的 @any / @all。具名导入时会自动把被依赖的宏一起拉进来，
+// 所以 `import { @assertAny } from "…/pystd.shya"` 不需要额外写 @any。
+
+macro @assertAny(#seq, #message: strLit) {
+  if (@any(#seq)) {
+    console log("通过：" + #message)
+  } else {
+    console log("失败：" + #message)
+  }
+}
+
+macro @assertAll(#seq, #message: strLit) {
+  if (@all(#seq)) {
+    console log("通过：" + #message)
+  } else {
+    console log("失败：" + #message)
+  }
+}

@@ -1,0 +1,272 @@
+新语言 shya（设计稿 v2）
+本文档是设计稿的修订版；与 v1（docs/design-draft-v1.txt）的差异逐条记录在 docs/design-v2.md
+本 dsl 为强类型语言，类型标注和 ts 规则一致，但只有基本的类型系统，无法自定义类，但可以通过 declare 声明外置对象以对接游戏系统
+本语言最终编译为 js 运行，编译目标为 es2026
+编译步骤：
+词法分析 → 语法分析（AST）→ 模块加载（.shya 宏文件）→ 宏展开/脱糖 → 核心 AST → 类型检查 → 代码生成
+设计理念：
+用最接近自然语言的语法写规则逻辑，用宏做模板与复用，用宿主桥拿底层能力，最终编译成 JS 跑在任何地方。
+
+关键字：
+if elif else case default fallthrough
+for of break continue
+let const define declare macro
+fn async await return throw try catch finally
+import from export as
+is not instanceof typeof new
+true false this void
+
+表达式：
+字面量：
+照旧（数组、对象、模板字符串、下标访问）
+数学字面量：
+~pi 和 unicode
+~e 和 unicode
+~lg10 -> 1
+~db10 -> 10 即10lg10
+~ln4
+~deg2      2 度化为弧度
+~ln~deg360
+~deg~e
+~sqrt2
+~rad2      弧度为度，~deg 的反向
+~tau ~inf  2π 与无穷
+注意
+~dege 错误（~deg 需要一个数值参数，自然常数请写 ~e）
+占位字面量：
+_只在宏中生效，也可以表示待完成，表示该句待填入
+if(false)_
+相当于python里面的pass语句
+_ 作为宏调用的第一个实参表示"没有 target"
+控制字面量：
+统一为 void
+只有 void，没有 null 和 undefined；写出 null / undefined 报 LEX009
+@ts{...} 内是原始 JS，不受此限制
+运算：
+算术：
+1+1 加
+1-2 减
+1*3 乘
+1/4 除
+1~/5 除并向0截断
+1+/5 除并向上取整
+1-/5 除并向下取整
+1\/5 除并四舍五入
+1 ^ 3 乘方
+1 % 2 取模（符号跟随被除数，要 Python 语义用 @mod）
+逻辑：
+照旧同c
+关系运算：
+和python一致
+1 < 2 < 3 true
+链式比较里出现两次的中间操作数只求值一次
+== 为严格相等且只有严格相等
+位运算：
+没有位运算
+类型判断：
+is
+is not（另一种词序 not is 也接受）
+instanceof
+not instanceof
+is 右侧是类型名：内建类型，或 declare 声明的宿主类型
+范围表达式：start:end,step
+统一含首不含尾，step可省
+只用于宏range遍历
+参数表达式：
+func(expr,expr)
+安全访问：
+func?(expr,expr)
+且参数具名化（具名插槽写在 { #名字: ... } 里）
+
+外置对象声明：
+declare Player {
+  name: string            字段：编译成属性读取 p.name
+  hp: number
+  hand: array<Card>
+  judge(): Card           方法：编译成调用 p.judge()
+  recover(n: number): void
+  draw(n: number = 1): void
+  note?: string           可选字段
+}
+declare fn hostRandom(max: number): number
+declare 只参与类型检查，不产出任何 JavaScript
+字段读属性、方法发调用；访问未声明成员报 TC014 警告
+declare 里写的默认值只描述宿主契约，不会注入到调用点
+
+语句：
+赋值：
+x,y = 1,2
+let和const可省
+由最终编译器推断，
+可变为let，
+不可变为const（被重新赋值时必须是 let）
+可由define定义常量，在编译期就已经完全确定，编译出的文件无此变量
+define a = 100
+player draw(a+a) ->player draw(100+100)
+复合赋值：
+x += 1 / x -= 1 / x *= 2 / x /= 2 / x %= 2 / x ^= 2（产物 x **= 2）
+只能作为语句
+自增：
+i++
+自增不做表达式
+循环：
+只有for(condition)循环
+只有for of遍历
+for player of players @range 0:3,2
+->
+含首，不含尾
+for x of @range 1:100,2
+->
+for(let x = 1; x<100; x+=2)
+for attr of @keys(player)
+for value of @values(player)
+for attr value of @entries(player)
+保留break和continue
+分支：
+if(exr1){
+}elif(expr2){
+}else{
+}
+if / elif 的圆括号可省：if 1 < 2 { }
+case x{
+1,2:;
+3,4:;
+5:fallthrough
+default:;
+}
+x不填直接匹配条件
+分支体恰好一条语句，要写多条请用 { }
+分支默认 break，写 fallthrough 才贯穿
+函数：
+fn name(a: number, b: string = "默认", ...rest: number[]): boolean { }
+async fn 支持异步；fn 也可以作为匿名函数表达式
+默认参数不要求放在最后
+异常与返回：
+return / throw / try { } catch e { } finally { }
+函数调用：
+特性：
+没有属性，一切皆是函数，无参括号可省略
+（宿主对象的字段要用 declare 声明后才会按属性读取）
+成员访问:
+player getHp
+player nextSeat nextSeat nextSeat recover(2)
+array slice(0,-1) indexOf(5)
+
+宏：
+宏函数:
+允许宏定义和使用嵌套
+target @操作符
+与
+@操作符(target)
+两者等价
+系统宏：
+将后面部分直接按ts语法解析：
+@ts {}只能嵌套@ts
+@ts 里的 #插槽 会被替换成实参节点
+@when(){
+#y:
+#n:
+}分支编译
+只填第一个的话，可不具名：
+@when(){}
+判定顺序：插槽形态 → 值类型 → AST 节点种类
+判定是三值的，unknown 不会命中任何分支；一个都不匹配报 MAC020
+@each(#slot of #slots){}
+x/_ @range start:end,step
+标准库宏：
+a @keys -> Object.keys(a)
+macro @keys(#x){
+@ts{Object.keys(#x)}
+}
+b @values-> Object.values(b)
+c @entries -> Object.entries(c)
+array @len -> array.length
+string @len -> string.length
+map @len -> map.size
+set @len -> set.size
+macro @len(#x){
+@when(#x is array || #x is string)@ts{#x.length}
+@when(#x is map || #x is set) @ts{#x.size}
+}
+你能像操作数组一样操作所有迭代器，最终仍为原始类型
+d @safe say("hello") say("nice")
+js编译产物->
+d?.say("hello")?.say("nice")
+macro @safe(#x,...#slots:callExpr){
+#x @each(#slot of #slots){
+@when(#slot is safeCallExpr){
+y:#slot
+n:?#slot
+}
+}
+}
+player nextSeat @share _p recover(2) draw(2)
+js编译产物->
+const _p = player.nextSeat()
+_p.recover(2)
+_p.draw(2)
+macro @share(#x,#y,...#slots:callExpr){
+#y = #x
+@each(#slot of #slots){
+#y #slot
+}
+}
+player nextSeat @safe_share _p recover(2) draw(2)
+->
+const _p = player.nextSeat()
+_p?.recover(2)
+_p?.draw(2)
+macro @safe_share(#x,#y,...#slots:callExpr){
+#y = #x
+@each(#slot of #slots){
+#y @when(#slot is safeCallExpr){y:#slot,n:?#slot}
+}
+}
+python 用户的宏库 lib/pystd.shya：
+@enumerate @zip @items @count @first @last @sum @max @min @sorted @reversed @unique
+@any @all @join @upper @lower @strip @split @replace @startswith @endswith @find
+@abs @round @int @float @pow @mod @clamp @str @bool @typeOf @repr @assertAny @assertAll
+其中 @mod 采用 Python 的 % 语义
+自定义宏函数
+变量需标注语句类型或表达式类型，或者变量的属性，否则默认为expr
+如果明确expr的类型，则可以访问expr的成员
+...xx只能标注为expr[]或其子类型
+比如范围表达式
+rangeExpr get(start)
+rangeExpr get(end)
+除 stmt / expr / type / expr[] / callExpr / safeCallExpr 之外，
+大部分安全的 AST 节点种类都可以直接作为插槽类型：
+ident numLit mathLit strLit tplLit boolLit voidLit arrayLit objectLit prop
+unary binary compare ternary call member index spread await macroApply slotRef tsRaw rangeExpr
+assign decl incDec ifStmt caseStmt caseArm whileStmt forOf forRange fnDecl
+returnStmt throwStmt tryStmt breakStmt continueStmt importStmt exportStmt block declareStmt exprStmt
+宏模板内部节点（when / whenArm / each / slotList / program / empty / optionalize / typeRef / macroDecl）
+刻意不能作为插槽类型——替换它们会改写模板自身
+macro @judge_color(#target:Player,#red:stmt,#black:stmt,#none:stmt){
+//该段也必须符合语法规则
+card = #target judge
+case (card getSuit){
+"red":#red;
+"black":#black;
+"none":#none;
+}
+}
+没有target时，需写为_
+调用
+#:宏插槽
+若插槽均为表达式或全为不定项，可省{}
+player @judge_color {
+#red:
+#black:
+#none:
+}
+导入：
+普通模块（.js/.mjs）规则与ts一致，原样透传
+宏文件（.shya）走同一套 import 语法，编译期加载，不产出 JavaScript：
+import "./pystd.shya"                            导入该文件全部宏
+import { @enumerate, @zip } from "./pystd.shya"  只导入这几个
+具名导入会自动带上被依赖的宏（依赖闭包）
+被导入文件里的 define 与 declare 一并进入导入方
+路径以 ./ ../ 开头时相对当前源文件；否则在 -I 指定的搜索根下查找
+循环导入报 MOD002；宏文件里导入非 .shya 报 MOD004
+未做说明的和js保持一致

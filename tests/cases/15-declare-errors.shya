@@ -1,0 +1,19 @@
+// declare 的诊断路径
+declare Player {
+  hp: number
+  recover(n: number): void
+}
+
+declare fn hostRandom(max: number): number
+
+fn makePlayer() {
+  return @ts{null}
+}
+
+fn main() {
+  let p: Player = @ts{makePlayer()}
+  p recover("oops")
+  hostRandom()
+  console log(p missingMember)
+}
+main()

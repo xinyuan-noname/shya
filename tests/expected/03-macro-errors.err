@@ -1,0 +1,22 @@
+D:\project\shya\tests\cases\03-macro-errors.shya:11:1: error: `define bad` 的初始值不是编译期常量（define 只接受字面量、数学字面量、其它 define 与它们的常量运算） [MAC019]
+  define bad = @ts{1}
+  ^
+D:\project\shya\tests\cases\03-macro-errors.shya:6:20: error: 未定义的宏 `@nope` [MAC014]
+  console log([1, 2] @nope(1))
+                     ^
+D:\project\shya\tests\cases\03-macro-errors.shya:7:15: error: 宏 `@two` 缺少参数 `#b` [MAC016]
+  console log(1 @two)
+                ^
+D:\project\shya\tests\cases\03-macro-errors.shya:8:23: error: 宏 `@two` 收到过多位置参数：多余 2 个（该实参）——所有参数都已被具名插槽占满，请减少具名插槽或去掉多余的位置参数 [MAC017]
+  console log(1 @two(1, 2, 3))
+                        ^
+D:\project\shya\tests\cases\03-macro-errors.shya:9:15: error: 宏 `@two` 缺少参数 `#b` [MAC016]
+  console log(1 @two { #c: console log("x") })
+                ^
+D:\project\shya\tests\cases\03-macro-errors.shya:9:15: error: 宏 `@two` 没有名为 `#c` 的参数 [MAC018]
+  console log(1 @two { #c: console log("x") })
+                ^
+D:\project\shya\tests\cases\03-macro-errors.shya:14:20: error: 宏 `@len` 的 @when 分支一个都没有匹配：无法静态确定参数类型 [MAC020]
+  console log(opaque @len)
+                     ^
+shya: build failed with 7 error(s)

@@ -1,0 +1,90 @@
+{
+  "name": "shya",
+  "displayName": "shya",
+  "description": "Language support for shya, a strongly-typed DSL that compiles to ES2026 JavaScript: syntax highlighting, snippets, bracket/folding rules and a compile command.",
+  "publisher": "xinyuan-noname",
+  "version": "0.1.0",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "keywords": [
+    "shya",
+    "dsl",
+    "javascript",
+    "es2026",
+    "macros"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:shya"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "shya",
+        "aliases": [
+          "shya",
+          "Shya"
+        ],
+        "extensions": [
+          ".shya"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "shya",
+        "scopeName": "source.shya",
+        "path": "./syntaxes/shya.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "shya",
+        "path": "./snippets/shya.json"
+      }
+    ],
+    "configuration": {
+      "title": "shya",
+      "properties": {
+        "shya.compilerPath": {
+          "type": "string",
+          "default": "shya",
+          "markdownDescription": "Path to the shya compiler executable. Defaults to `shya`, which requires it to be on `PATH`; on Windows you probably want something like `D:\\\\project\\\\shya\\\\build\\\\shya.exe`."
+        },
+        "shya.buildArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "build"
+          ],
+          "markdownDescription": "Arguments passed to the compiler before the input file. The shya sub-command `build` is the default; use `[\"check\"]` to type-check only."
+        },
+        "shya.buildOutputExtension": {
+          "type": "string",
+          "default": ".mjs",
+          "description": "Extension used for the -o output file produced by the compile command."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "shya.compile",
+        "title": "Compile File",
+        "category": "shya",
+        "icon": "$(gear)"
+      }
+    ]
+  },
+  "scripts": {
+    "package": "node build-vsix.mjs"
+  }
+}

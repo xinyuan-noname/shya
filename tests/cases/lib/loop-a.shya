@@ -1,0 +1,6 @@
+// 循环导入检测用的两个文件
+import "./loop-b.shya"
+
+macro @fromA() {
+  @ts{"A"}
+}

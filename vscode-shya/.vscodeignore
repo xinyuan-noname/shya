@@ -1,0 +1,10 @@
+.vscode/**
+.vscode-test/**
+node_modules/**
+build-vsix.mjs
+grammar-smoke.mjs
+extension-smoke.mjs
+.extension-smoke-driver.cjs
+*.vsix
+.gitignore
+**/*.map

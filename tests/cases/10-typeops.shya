@@ -1,0 +1,15 @@
+// 设计稿的类型判断运算符：is / is not / instanceof / not instanceof
+fn probe(x) {
+  console log(x is array, x is not array)
+  console log(x is void, x is not void)
+  console log(x instanceof Date, x not instanceof Date)
+  console log(3 not is string, 3 not is number)
+  console log(1 < 2 < 3, 3 > 2 > 1, 1 < 2 > 3)
+}
+
+fn main() {
+  probe([1, 2])
+  probe(void)
+  probe("s")
+}
+main()

@@ -1,0 +1,4 @@
+D:\project\shya\tests\cases\05-mathlit-error.shya:2:13: error: 未知的数学字面量 `~dege` [LEX007]
+  console log(~dege)
+              ^
+shya: build failed with 1 error(s)

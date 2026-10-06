@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the compiler (MSVC)
+        shell: cmd
+        run: build.bat
+
+      - name: Run the test suite
+        run: node tests/run.mjs
+
+      - name: Package the VS Code extension
+        run: node vscode-shya/build-vsix.mjs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shya-windows
+          path: |
+            build/shya.exe
+            vscode-shya/shya-0.1.0.vsix
+          if-no-files-found: error

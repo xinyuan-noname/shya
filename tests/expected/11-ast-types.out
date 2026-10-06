@@ -1,0 +1,15 @@
+swapIf:
+  yes
+  no
+kindOf:
+  -> binary
+  -> member
+  -> string literal
+  -> number literal
+  -> array literal
+  -> @ts block
+  -> identifier
+block start
+  inside the block
+block end
+literal is hello

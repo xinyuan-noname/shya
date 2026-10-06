@@ -1,0 +1,17 @@
+// 类型检查器的诊断（这些都必须报错）
+let n: number = "不是数字"
+
+fn add(a: number, b: number): number {
+  return a + b
+}
+
+const frozen = 1
+
+fn main() {
+  add(1)
+  add(1, 2, 3)
+  let s = "text"
+  console log(s - 1)
+  frozen = 2
+  console log(n + 1)
+}

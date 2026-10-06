@@ -1,0 +1,56 @@
+// 宏插槽类型可以是 AST 节点种类
+// 见 docs/ast-nodes.md：安全节点都能当类型用，宏模板内部节点除外。
+
+macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+  if #cond {
+    #yes
+  } else {
+    #no
+  }
+}
+
+macro @kindOf(#x) {
+  @when(#x is binary) console log("  -> binary")
+  @when(#x is call) console log("  -> call")
+  @when(#x is member) console log("  -> member")
+  @when(#x is strLit) console log("  -> string literal")
+  @when(#x is numLit) console log("  -> number literal")
+  @when(#x is arrayLit) console log("  -> array literal")
+  @when(#x is tsRaw) console log("  -> @ts block")
+  @when(#x is ident) console log("  -> identifier")
+}
+
+macro @inBlock(#b: block) {
+  console log("block start")
+  #b
+  console log("block end")
+}
+
+macro @echoLit(#x: strLit) {
+  console log("literal is " + #x)
+}
+
+fn main() {
+  let a = 1
+
+  console log("swapIf:")
+  @swapIf(a < 2, console log("  yes"), console log("  no"))
+  @swapIf(a > 2, console log("  yes"), console log("  no"))
+
+  console log("kindOf:")
+  @kindOf(a + 1)
+  @kindOf(a toStr)
+  @kindOf("text")
+  @kindOf(42)
+  @kindOf([1, 2])
+  @kindOf(@ts{1 + 1})
+  @kindOf(a)
+
+  @inBlock {
+    #b: console log("  inside the block")
+  }
+
+  @echoLit("hello")
+}
+
+main()

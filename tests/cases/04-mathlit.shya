@@ -1,0 +1,3 @@
+// 数学字面量：ASCII 形式与 Unicode 形式
+console log(~pi, ~e, ~lg10, ~db10, ~ln4, ~deg2, ~ln~deg360, ~deg~e, ~sqrt2)
+console log(~π, ~ℯ, ~τ, ~∞)

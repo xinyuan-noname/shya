@@ -1,0 +1,51 @@
+// 宏文件导入 + 面向 Python 用户的宏集
+// 写法与其它模块的导入完全一致，只是路径以 .shya 结尾：
+import { @enumerate, @zip, @items, @sum, @max, @min, @sorted, @reversed, @count } from "../../lib/pystd.shya"
+import { @upper, @strip, @split, @join, @mod, @assertAny } from "../../lib/pystd.shya"
+import { @unique, @clamp, @str, @repr } from "../../lib/pystd.shya"
+
+fn main() {
+  let xs: array<number> = [3, 1, 4, 1, 5]
+
+  // for i, v of @enumerate(xs)
+  for i v of @enumerate(xs) {
+    console log("enumerate", i, v)
+  }
+
+  // for a, b of @zip(xs, ys)
+  let ys: array<string> = ["a", "b", "c", "d", "e"]
+  for a b of @zip(xs, ys) {
+    console log("zip", a, b)
+  }
+
+  let d = { 一: 1, 二: 2 }
+  for k v of @items(d) {
+    console log("items", k, v)
+  }
+
+  console log("sum", xs @sum)
+  console log("max", xs @max)
+  console log("min", xs @min)
+  console log("sorted", xs @sorted)
+  console log("reversed", xs @reversed)
+  console log("unique", xs @unique)
+  console log("count", xs @count)
+
+  console log("join", xs @sorted @join("-"))
+
+  let s: string = "  Hello, World  "
+  console log("strip/upper", s @strip @upper)
+  console log("split", (s @strip @split(", ")) @join("|"))
+
+  // Python 的 % 语义（注意：后缀宏比一元负号结合得更紧，所以要写 (-7)）
+  console log("mod", (-7) @mod(3), -7 % 3)
+  console log("clamp", 12 @clamp(0, 10))
+
+  console log("str/repr", 42 @str, xs @repr)
+
+  // 具名导入只写了 @assertAny，但它依赖的 @any 会被自动带上
+  @assertAny(xs, "xs 非空")
+  @assertAny([], "空序列应为假")
+}
+
+main()

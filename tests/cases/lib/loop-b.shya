@@ -1,0 +1,5 @@
+import "./loop-a.shya"
+
+macro @fromB() {
+  @ts{"B"}
+}

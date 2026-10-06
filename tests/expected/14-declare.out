@@ -1,0 +1,13 @@
+me 4
+手牌数 2
+red 1
+recover 2
+draw 1
+say hi
+say there
+hostRandom 3
+[host] done
+card red 7
+card black 9
+me 4
+you 4

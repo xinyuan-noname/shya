@@ -1,0 +1,73 @@
+// 设计稿里的宏示例，逐条对照
+macro @judge_color(#target: Player, #red: stmt, #black: stmt, #none: stmt) {
+  card = #target judge
+  case (card getSuit) {
+    "red": #red;
+    "black": #black;
+    "none": #none;
+  }
+}
+
+// 没有 target 的宏：调用时第一个参数用 `_` 占位
+macro @banner(#target: Player, #text: stmt) {
+  console log("---")
+  #text
+}
+
+// 具名插槽优先：位置参数（后缀 target）填充「没被具名占掉」的参数
+macro @emit(#who: Player, #a: stmt, #b: stmt) {
+  console log("who=" + @ts{#who.name})
+  #a
+  #b
+}
+
+fn makePlayer(name: string) {
+  return @ts{({
+    name: name,
+    hp: 4,
+    seat: 1,
+    judge: () => ({ getSuit: () => "red" }),
+    nextSeat: () => makePlayer("p2"),
+    recover: (n) => { console.log("recover " + n); },
+    draw: (n) => { console.log("draw " + n); },
+    say: (m) => { console.log("say " + m); return { say: (x) => console.log("say " + x) }; }
+  })}
+}
+
+fn main() {
+  let d = makePlayer("a")
+
+  // d @safe say("hello") say("nice")  ->  d?.say("hello")?.say("nice")
+  d @safe say("hello") say("nice")
+
+  let player = makePlayer("p")
+
+  // player nextSeat @share _p recover(2) draw(2)
+  player nextSeat @share _p recover(2) draw(2)
+
+  // player nextSeat @safe_share _q recover(2) draw(2)
+  player nextSeat @safe_share _q recover(2) draw(2)
+
+  // 命名插槽调用
+  player @judge_color {
+    #red: console log("红")
+    #black: console log("黑")
+    #none: console log("无色")
+  }
+
+  // 位置参数调用（等价写法）
+  player @judge_color(console log("R"), console log("B"), console log("N"))
+
+  // 无 target 时用 `_` 占位
+  _ @banner {
+    #text: console log("no target needed")
+  }
+
+  // 具名 a；位置的 target 落到第一个「没被具名占掉」的参数 #who；#b 是 stmt 槽，可省略
+  let p2 = makePlayer("q")
+  p2 @emit {
+    #a: console log("named a")
+  }
+}
+
+main()

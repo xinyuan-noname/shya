@@ -1,0 +1,21 @@
+// shya 入门示例：编译并运行
+//   build\shya.exe run examples/hello.shya
+define MAX = 100
+
+fn describe(name: string, times: number): string {
+  let out = name
+  for i of @range 0:times,1 {
+    out = out + "!"
+  }
+  return out
+}
+
+fn main() {
+  console log(describe("shya", 3))
+  console log(MAX + MAX, ~pi)
+
+  let d = @ts{{ say: (m) => { console.log(m); return { say: (x) => console.log(x) }; } }}
+  d @safe say("hello") say("nice")
+}
+
+main()

@@ -1,0 +1,10 @@
+D:\project\shya\tests\cases\15-declare-errors.shya:15:13: error: 方法 `recover` 的第 1 个实参：期望 number，实际是 string [TC003]
+    p recover("oops")
+              ^
+D:\project\shya\tests\cases\15-declare-errors.shya:16:13: error: 调用参数个数不匹配：期望 1 个，实际 0 个 [TC006]
+    hostRandom()
+              ^
+D:\project\shya\tests\cases\15-declare-errors.shya:17:17: warning: 类型 `Player` 没有声明成员 `missingMember`（可用 `declare Player { missingMember: … }` 补充声明） [TC014]
+    console log(p missingMember)
+                  ^
+shya: build failed with 2 error(s)

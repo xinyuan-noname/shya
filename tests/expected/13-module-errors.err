@@ -1,0 +1,10 @@
+D:\project\shya\tests\cases\13-module-errors.shya:2:1: error: 找不到宏文件 `./lib/does-not-exist.shya` [MOD001]
+  import "./lib/does-not-exist.shya"
+  ^
+D:\project\shya\tests\cases\13-module-errors.shya:3:1: error: 宏文件 `../../lib/pystd.shya` 里没有宏 `@没有这个宏` [MOD005]
+  import { @没有这个宏 } from "../../lib/pystd.shya"
+  ^
+D:\project\shya\tests\cases\13-module-errors.shya:4:1: error: 宏文件循环导入：`./loop-a.shya` [MOD002]
+  import "./lib/loop-a.shya"
+  ^
+shya: build failed with 3 error(s)

@@ -1,0 +1,16 @@
+D:\project\shya\tests\cases\06-typecheck.shya:2:5: error: 变量 `n` 的初始值：期望 number，实际是 string [TC003]
+  let n: number = "不是数字"
+      ^
+D:\project\shya\tests\cases\06-typecheck.shya:11:6: error: 调用参数个数不匹配：期望 2 个，实际 1 个 [TC006]
+    add(1)
+       ^
+D:\project\shya\tests\cases\06-typecheck.shya:12:6: error: 调用参数个数不匹配：期望 2 个，实际 3 个 [TC006]
+    add(1, 2, 3)
+       ^
+D:\project\shya\tests\cases\06-typecheck.shya:14:17: error: 运算符 `-` 的左操作数：期望 number，实际是 string [TC003]
+    console log(s - 1)
+                  ^
+D:\project\shya\tests\cases\06-typecheck.shya:15:3: error: `frozen` 是 const 常量，不能被重新赋值 [TC013]
+    frozen = 2
+    ^
+shya: build failed with 5 error(s)

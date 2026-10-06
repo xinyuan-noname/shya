@@ -1,0 +1,9 @@
+// 宏文件导入的错误路径
+import "./lib/does-not-exist.shya"
+import { @没有这个宏 } from "../../lib/pystd.shya"
+import "./lib/loop-a.shya"
+
+fn main() {
+  console log("unreachable")
+}
+main()

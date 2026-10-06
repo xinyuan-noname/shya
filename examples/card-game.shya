@@ -1,0 +1,66 @@
+// 一个更像真实规则的例子：把设计稿里的写法串起来
+// 用原生 JS 写一个最小的"游戏宿主"，模拟规则里会碰到的东西。
+
+fn makeCard(suit: string, rank: number) {
+  return @ts{({ suit: suit, rank: rank, getSuit: () => suit })}
+}
+
+fn makePlayer(name: string, hp: number) {
+  return @ts{({
+    name: name,
+    hp: hp,
+    seat: 0,
+    handCount: () => 3,
+    judge: () => makeCard("red", 7),
+    nextSeat: () => makePlayer("下家", 4),
+    recover: (n) => { hp = hp + (n > hp ? hp : n); return hp; },
+    draw: (n) => { console.log("摸 " + n + " 张"); },
+    say: (m) => { console.log(m); return { say: (x) => console.log(x) }; },
+  })}
+}
+
+// 设计稿 §宏：按花色分派，调用时可写具名插槽
+macro @on_color(#target: Player, #red: stmt, #black: stmt, #none: stmt) {
+  card = #target judge
+  case (card getSuit) {
+    "red": #red;
+    "black": #black;
+    "none": #none;
+  }
+}
+
+fn main() {
+  let me = makePlayer("我", 2)
+
+  // define 常量 + @len（宿主的属性是函数，用 handCount；纯数据用标注过的数组）
+  define DRAW_COUNT = 2
+  console log("手牌数 " + (me handCount))
+
+  let costs: array<number> = [1, 2, 3]
+  console log("费用数 " + (costs @len))
+  for c of costs @values {
+    console log("费用 " + c)
+  }
+
+  // @share：把链式调用拆成可读的一行
+  me nextSeat @share next recover(1) draw(DRAW_COUNT)
+
+  // @safe：任意一环为 null 都不会炸
+  let ghost = @ts{null}
+  ghost @safe recover(1) draw(1)
+
+  // 具名插槽分支
+  me @on_color {
+    #red: console log("红色，受到 1 点伤害")
+    #black: console log("黑色，摸一张")
+    #none: console log("无色，无事发生")
+  }
+
+  // 编译期常量折叠：产物里只有 4
+  console log(DRAW_COUNT + DRAW_COUNT)
+
+  // 数学字面量
+  console log("概率 " + (1 / 6), "对数 " + ~ln~e)
+}
+
+main()

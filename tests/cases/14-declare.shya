@@ -1,0 +1,70 @@
+// 外置 / 宿主对象的声明方式：declare
+// declare 只参与类型检查，不产出任何 JavaScript。
+
+// 宿主侧的真实实现（由游戏引擎提供，这里用 @ts 模拟）
+@ts{function hostRandom(max) { return Math.floor(max / 2); }}
+@ts{function hostLog(msg) { console.log("[host] " + msg); }}
+@ts{function makeCard(suit, rank) { return { suit: suit, rank: rank }; }}
+@ts{function makePlayer(name) {
+  return {
+    name: name,
+    hp: 4,
+    hand: [makeCard("red", 7), makeCard("black", 9)],
+    judge: () => makeCard("red", 1),
+    recover: (n) => { console.log("recover " + n); },
+    draw: (n = 1) => { console.log("draw " + n); },
+    say: (m) => { console.log("say " + m); return makePlayer("other"); },
+  };
+}}
+
+// 声明宿主对象的形状
+declare Card {
+  suit: string
+  rank: number
+}
+
+declare Player {
+  name: string            // 字段：编译成属性读取 p.name
+  hp: number
+  hand: array<Card>
+  judge(): Card           // 方法：编译成调用 p.judge()
+  recover(n: number): void
+  say(msg: string): Player
+  draw(n: number = 1): void
+}
+
+declare fn hostRandom(max: number): number
+declare fn hostLog(msg: string): void
+
+fn main() {
+  let p: Player = @ts{makePlayer("me")}
+  let opp: Player = @ts{makePlayer("you")}
+
+  // 字段：不加括号
+  console log(p name, p hp)
+  console log("手牌数", p hand @len)
+
+  // 方法：自动加括号
+  let c: Card = p judge
+  console log(c suit, c rank)
+  p recover(2)
+  p draw()
+  p say("hi") say("there")
+
+  // 声明过的宿主函数
+  console log("hostRandom", hostRandom(6))
+  hostLog("done")
+
+  // 数组字段可以直接遍历
+  for card of p hand {
+    console log("card", card suit, card rank)
+  }
+
+  // 宿主类型也能用于参数标注
+  let players: array<Player> = [p, opp]
+  for who of players {
+    console log(who name, who hp)
+  }
+}
+
+main()

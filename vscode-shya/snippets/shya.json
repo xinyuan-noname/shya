@@ -1,0 +1,150 @@
+{
+  "fn": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2}): ${3:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya function declaration"
+  },
+  "afn": {
+    "prefix": "afn",
+    "body": [
+      "async fn ${1:name}(${2}): ${3:void} {",
+      "\tawait ${4:promise}",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya async function declaration"
+  },
+  "macro": {
+    "prefix": "macro",
+    "body": [
+      "macro @${1:name}(${2:#x}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya macro definition"
+  },
+  "when": {
+    "prefix": "when",
+    "body": [
+      "@when(${1:#x} is ${2:array}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya compile-time @when branch"
+  },
+  "each": {
+    "prefix": "each",
+    "body": [
+      "@each(${1:#slot} of ${2:#slots}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya compile-time @each over an indefinite slot"
+  },
+  "share": {
+    "prefix": "share",
+    "body": [
+      "${1:target} @share ${2:_p} ${3:call(1)} ${4:call(2)}"
+    ],
+    "description": "shya @share: bind a receiver and chain calls through it"
+  },
+  "safe": {
+    "prefix": "safe",
+    "body": [
+      "${1:target} @safe ${2:call(1)} ${3:call(2)}"
+    ],
+    "description": "shya @safe: optional-chained call chain"
+  },
+  "for": {
+    "prefix": "for",
+    "body": [
+      "for ${1:n} < ${2:3} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya condition loop (compiles to while)"
+  },
+  "forin": {
+    "prefix": "forin",
+    "body": [
+      "for ${1:item} of ${2:items} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya for ... of iteration"
+  },
+  "range": {
+    "prefix": "range",
+    "body": [
+      "for ${1:i} of @range ${2:0}:${3:10},${4:1} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya @range loop (half-open, optional step)"
+  },
+  "case": {
+    "prefix": "case",
+    "body": [
+      "case ${1:value} {",
+      "\t${2:\"a\"}, ${3:\"b\"}: ${4:console log(\"hit\")}",
+      "\tdefault: ${0:console log(\"other\")}",
+      "}"
+    ],
+    "description": "shya case branch (each arm breaks by default)"
+  },
+  "ifelse": {
+    "prefix": "ifelse",
+    "body": [
+      "if ${1:cond} {",
+      "\t${2:_}",
+      "} elif ${3:other} {",
+      "\t${4:_}",
+      "} else {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya if / elif / else"
+  },
+  "declare": {
+    "prefix": "declare",
+    "body": [
+      "declare ${1:Type} {",
+      "\t${2:member}: ${3:number}",
+      "\t${4:getMember}(): ${5:number}",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya host object declaration block"
+  },
+  "try": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t$1",
+      "} catch ${2:e} {",
+      "\t$3",
+      "} finally {",
+      "\t$0",
+      "}"
+    ],
+    "description": "shya try / catch / finally"
+  },
+  "import": {
+    "prefix": "import",
+    "body": [
+      "import { ${1:helper} } from \"${2:./helper.mjs}\""
+    ],
+    "description": "shya import binding"
+  },
+  "tsblock": {
+    "prefix": "tsblock",
+    "body": [
+      "@ts{${1:Object.keys(#x)}}"
+    ],
+    "description": "shya @ts verbatim JavaScript passthrough"
+  }
+}

@@ -1,0 +1,678 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "shya",
+  "scopeName": "source.shya",
+  "fileTypes": [
+    ".shya"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#math-literals"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#ts-blocks"
+    },
+    {
+      "include": "#macro-definition"
+    },
+    {
+      "include": "#builtin-control-macros"
+    },
+    {
+      "include": "#macro-usage"
+    },
+    {
+      "include": "#slot-labels"
+    },
+    {
+      "include": "#slots"
+    },
+    {
+      "include": "#function-declaration"
+    },
+    {
+      "include": "#fn-expression"
+    },
+    {
+      "include": "#declare-block"
+    },
+    {
+      "include": "#type-annotation"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#wildcard"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "comment": "block comment; TextMate cannot truly nest, but the body re-includes this rule so that an inner /* ... */ is consumed as a unit and the outer comment keeps going until its own */.",
+          "name": "comment.block.shya",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "patterns": [
+            {
+              "include": "#comments"
+            }
+          ]
+        },
+        {
+          "name": "comment.line.double-slash.shya",
+          "match": "//.*$"
+        }
+      ]
+    },
+
+    "operators": {
+      "comment": "Put ~/ first so that the truncating-division operator can never be read as the start of a math literal. The lookahead on ? keeps the safe-call operator (f?(x)) distinct from the ternary.",
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.shya",
+          "match": "~/"
+        },
+        {
+          "name": "keyword.operator.arithmetic.shya",
+          "match": "\\+/|-/|\\\\/"
+        },
+        {
+          "name": "keyword.operator.assignment.shya",
+          "match": "\\*\\*=|\\+=|-=|\\*=|/=|%=|\\^=|===|!==|==|!=|<=|>=|&&|\\|\\||\\.\\.\\.|\\?\\?|->|\\*\\*"
+        },
+        {
+          "name": "keyword.operator.assignment.shya",
+          "match": "(?<![\\w$])=(?!=)"
+        },
+        {
+          "name": "keyword.operator.increment-decrement.shya",
+          "match": "\\+\\+|--"
+        },
+        {
+          "name": "keyword.operator.comparison.shya",
+          "match": "<|>"
+        },
+        {
+          "name": "keyword.operator.arithmetic.shya",
+          "match": "\\+|-|\\*|/|%|\\^"
+        },
+        {
+          "name": "keyword.operator.logical.shya",
+          "match": "!"
+        },
+        {
+          "name": "keyword.operator.safecall.shya",
+          "match": "\\?(?=[\\s(\\[])"
+        },
+        {
+          "name": "keyword.operator.ternary.shya",
+          "match": "\\?"
+        },
+        {
+          "name": "keyword.operator.range.shya",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.separator.shya",
+          "match": ",|;|\\."
+        },
+        {
+          "name": "punctuation.section.parens.shya",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.section.brackets.shya",
+          "match": "[\\[\\]]"
+        }
+      ]
+    },
+
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.shya",
+          "match": "\\b0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*n?\\b"
+        },
+        {
+          "name": "constant.numeric.binary.shya",
+          "match": "\\b0[bB][01](?:_?[01])*n?\\b"
+        },
+        {
+          "name": "constant.numeric.octal.shya",
+          "match": "\\b0[oO][0-7](?:_?[0-7])*n?\\b"
+        },
+        {
+          "name": "constant.numeric.float.shya",
+          "match": "\\b\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:[eE][+-]?\\d(?:_?\\d)*)\\b"
+        },
+        {
+          "name": "constant.numeric.float.shya",
+          "match": "\\b\\d(?:_?\\d)*\\.\\d(?:_?\\d)*"
+        },
+        {
+          "name": "constant.numeric.decimal.shya",
+          "match": "\\b\\d(?:_?\\d)*\\b"
+        },
+        {
+          "name": "constant.numeric.float.shya",
+          "match": "\\.\\d(?:_?\\d)*"
+        }
+      ]
+    },
+
+    "math-literals": {
+      "comment": "Compile-time math constants, folded during lexing. Function forms (ln/lg/db/deg/rad/sqrt) take a numeric literal argument and nest: ~ln~deg360 evaluates to ln(deg(360)). Constant forms (~pi, ~e, ~tau, ~inf and the Unicode spellings) take no argument. The trailing (?![\\w$\\u00A1-\\uFFFF]) guard stops ~pi from swallowing an identifier prefix. Nesting is written out explicitly to three levels rather than with an Oniguruma recursive subexpression call (\\g<0>), which is not needed for the documented forms and not guaranteed to be supported by every TextMate implementation.",
+      "patterns": [
+        {
+          "name": "constant.numeric.math.shya",
+          "match": "~(?:ln|lg|db|deg|rad|sqrt)(?:~(?:ln|lg|db|deg|rad|sqrt)(?:~(?:ln|lg|db|deg|rad|sqrt)(?:~(?:pi|tau|inf|e)|~[πℯτ∞]|(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:[eE][+-]?\\d(?:_?\\d)*)?))|~(?:pi|tau|inf|e)|~[πℯτ∞]|(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:[eE][+-]?\\d(?:_?\\d)*)?))|~(?:pi|tau|inf|e)|~[πℯτ∞]|(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:[eE][+-]?\\d(?:_?\\d)*)?))(?![\\w$\\u00A1-\\uFFFF])"
+        },
+        {
+          "name": "constant.numeric.math.shya",
+          "match": "~(?:pi|tau|inf|e)(?![\\w$\\u00A1-\\uFFFF])"
+        },
+        {
+          "name": "constant.numeric.math.shya",
+          "match": "~[πℯτ∞]"
+        }
+      ]
+    },
+
+    "ts-blocks": {
+      "comment": "@ts{ ... } is a verbatim JS/TS passthrough, so the whole region is scoped meta.embedded.block.javascript.shya and offered to the JavaScript grammar. The rule deliberately uses the plain end '\\}' instead of an Oniguruma recursive subexpression call (\\g<0>), which vscode-textmate is not guaranteed to support: TextMate's own begin/end nesting already counts the braces, so '@ts{{ say: (m) => log(m) }}' closes on the outer brace, and a nested rule from source.js (an object literal, a function body) closes its own brace first because rule closing is stack-based.",
+      "patterns": [
+        {
+          "name": "meta.embedded.block.javascript.shya",
+          "begin": "(@ts)\\s*(\\{)",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.function.macro.shya"
+            },
+            "2": {
+              "name": "punctuation.section.block.begin.shya"
+            }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.section.block.end.shya"
+            }
+          },
+          "applyEndPatternLast": 1,
+          "patterns": [
+            {
+              "include": "source.js"
+            }
+          ]
+        }
+      ]
+    },
+
+    "macro-definition": {
+      "comment": "macro @name(#slot: type, ...#rest: expr[]) { ... } — the @name after the macro keyword is a definition, so it gets entity.name.function.definition.",
+      "patterns": [
+        {
+          "name": "meta.macro.definition.shya",
+          "match": "\\b(macro)\\s+(@)([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.macro.shya"
+            },
+            "2": {
+              "name": "punctuation.definition.macro.shya"
+            },
+            "3": {
+              "name": "entity.name.function.definition.shya"
+            }
+          }
+        }
+      ]
+    },
+
+    "builtin-control-macros": {
+      "comment": "Compile-time control macros. @each/@when/@range are recognised for highlighting only; the grammar does not validate their shape.",
+      "patterns": [
+        {
+          "name": "meta.macro.when.shya",
+          "match": "(@)(when)\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.macro.shya"
+            },
+            "2": {
+              "name": "keyword.control.conditional.macro.shya"
+            }
+          }
+        },
+        {
+          "name": "meta.macro.each.shya",
+          "match": "(@)(each)\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.macro.shya"
+            },
+            "2": {
+              "name": "keyword.control.loop.macro.shya"
+            }
+          }
+        },
+        {
+          "name": "meta.macro.range.shya",
+          "match": "(@)(range)\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.macro.shya"
+            },
+            "2": {
+              "name": "keyword.control.loop.macro.shya"
+            }
+          }
+        }
+      ]
+    },
+
+    "macro-usage": {
+      "comment": "Macro invocation (@len, @keys, @safe, @share, ...), in both prefix and postfix position.",
+      "patterns": [
+        {
+          "name": "meta.macro.invocation.shya",
+          "match": "(@)([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.macro.shya"
+            },
+            "2": {
+              "name": "entity.name.function.macro.shya"
+            }
+          }
+        }
+      ]
+    },
+
+    "slot-labels": {
+      "comment": "Named slot block label: #red: ... . Must be tried before the generic slot rule (the trailing colon is what makes it a label) and before the ternary/':' operator.",
+      "patterns": [
+        {
+          "name": "meta.slot.label.shya",
+          "match": "(#)([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)(?=\\s*:)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.slot.shya"
+            },
+            "2": {
+              "name": "variable.parameter.slot.shya"
+            }
+          }
+        }
+      ]
+    },
+
+    "slots": {
+      "comment": "Slot reference: #name, and slot declarations in a macro header or @each(...): #name, ...#rest: expr[]. The lookahead excludes the label form handled above.",
+      "patterns": [
+        {
+          "name": "meta.slot.declaration.shya",
+          "match": "(\\.\\.\\.)?(#)([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)(?=\\s*[:,)])",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.spread.shya"
+            },
+            "2": {
+              "name": "punctuation.definition.slot.shya"
+            },
+            "3": {
+              "name": "variable.parameter.slot.shya"
+            }
+          }
+        },
+        {
+          "name": "meta.slot.reference.shya",
+          "match": "(#)([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.slot.shya"
+            },
+            "2": {
+              "name": "variable.parameter.slot.shya"
+            }
+          }
+        }
+      ]
+    },
+
+    "function-declaration": {
+      "comment": "fn / async fn / export fn declarations, including a nested function-expression rule for the parameter defaults and object method shorthand inside the body.",
+      "patterns": [
+        {
+          "name": "meta.function.declaration.shya",
+          "begin": "\\b(?:(export)\\s+)?(?:(default)\\s+)?(?:(async)\\s+)?(fn)\\s+([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)\\s*(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.modifier.export.shya"
+            },
+            "2": {
+              "name": "storage.modifier.default.shya"
+            },
+            "3": {
+              "name": "storage.modifier.async.shya"
+            },
+            "4": {
+              "name": "storage.type.function.shya"
+            },
+            "5": {
+              "name": "entity.name.function.shya"
+            },
+            "6": {
+              "name": "punctuation.section.parameters.begin.shya"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.parameters.end.shya"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#function-declaration"
+            },
+            {
+              "include": "#type-annotation"
+            },
+            {
+              "include": "#math-literals"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "name": "keyword.operator.spread.shya",
+              "match": "\\.\\.\\."
+            },
+            {
+              "name": "punctuation.separator.parameters.shya",
+              "match": ","
+            },
+            {
+              "name": "keyword.operator.assignment.shya",
+              "match": "="
+            },
+            {
+              "name": "punctuation.section.parens.shya",
+              "match": "[()]"
+            },
+            {
+              "name": "punctuation.section.brackets.shya",
+              "match": "[\\[\\]]"
+            }
+          ]
+        }
+      ]
+    },
+
+    "fn-expression": {
+      "comment": "fn as an expression: `fn (x) { ... }` / `async fn (x) { ... }` — anonymous, so there is no name capture.",
+      "patterns": [
+        {
+          "name": "meta.function.expression.shya",
+          "begin": "\\b(?:(async)\\s+)?(fn)\\s*(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.modifier.async.shya"
+            },
+            "2": {
+              "name": "storage.type.function.shya"
+            },
+            "3": {
+              "name": "punctuation.section.parameters.begin.shya"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.parameters.end.shya"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#function-declaration"
+            },
+            {
+              "include": "#type-annotation"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "name": "keyword.operator.spread.shya",
+              "match": "\\.\\.\\."
+            },
+            {
+              "name": "punctuation.separator.parameters.shya",
+              "match": ","
+            },
+            {
+              "name": "punctuation.section.parens.shya",
+              "match": "[()]"
+            }
+          ]
+        }
+      ]
+    },
+
+    "declare-block": {
+      "comment": "declare Player { ... } — a host-object declaration block; emits no JavaScript at all.",
+      "patterns": [
+        {
+          "name": "meta.declare.shya",
+          "begin": "\\b(declare)\\s+([A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)\\s*(\\{)",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.declare.shya"
+            },
+            "2": {
+              "name": "entity.name.type.shya"
+            },
+            "3": {
+              "name": "punctuation.section.block.begin.shya"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.block.end.shya"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#function-declaration"
+            },
+            {
+              "include": "#type-annotation"
+            },
+            {
+              "name": "keyword.operator.range.shya",
+              "match": ":"
+            }
+          ]
+        }
+      ]
+    },
+
+    "type-annotation": {
+      "comment": "A type after ':' — as in `let hp: number`, `fn f(...): boolean` and declare members like `getHp(): number`. Nested generics (array<number>) and unions (number | void) are included recursively.",
+      "patterns": [
+        {
+          "name": "meta.type.annotation.shya",
+          "match": "(:)\\s*((?:[A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)(?:\\.[A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)*(?:\\s*<[^<>{}]*>)?(?:\\s*\\[\\s*\\])*)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.range.shya"
+            },
+            "2": {
+              "name": "entity.name.type.shya"
+            }
+          }
+        },
+        {
+          "name": "meta.type.annotation.union.shya",
+          "match": "(:)\\s*((?:[A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)(?:\\s*(?:\\||&)\\s*[A-Za-z_$\\u00A1-\\uFFFF][\\w$\\u00A1-\\uFFFF]*)+)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.range.shya"
+            },
+            "2": {
+              "name": "entity.name.type.shya"
+            }
+          }
+        }
+      ]
+    },
+
+    "strings": {
+      "comment": "Double-quoted and single-quoted strings, plus template strings whose ${ ... } contents are shya expressions (so they are re-included as #root).",
+      "patterns": [
+        {
+          "name": "string.quoted.double.shya",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.shya",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.shya",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.shya",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.template.shya",
+          "begin": "`",
+          "end": "`",
+          "patterns": [
+            {
+              "name": "constant.character.escape.shya",
+              "match": "\\\\."
+            },
+            {
+              "name": "meta.embedded.expression.shya",
+              "begin": "\\$\\{",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.section.embedded.begin.shya"
+                }
+              },
+              "end": "(\\})",
+              "endCaptures": {
+                "1": {
+                  "name": "punctuation.section.embedded.end.shya"
+                }
+              },
+              "patterns": [
+                {
+                  "include": "#root"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    "keywords": {
+      "comment": "Language keywords. Void is included. Deliberately kept faithful to the reference list: `null` and `undefined` are not shya spellings.",
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.shya",
+          "match": "\\b(?:if|elif|else|case|default|fallthrough)\\b"
+        },
+        {
+          "name": "keyword.control.loop.shya",
+          "match": "\\b(?:for|of|break|continue)\\b"
+        },
+        {
+          "name": "storage.type.shya",
+          "match": "\\b(?:let|const|define|macro)\\b"
+        },
+        {
+          "name": "storage.type.function.shya",
+          "match": "\\bfn\\b"
+        },
+        {
+          "name": "storage.modifier.async.shya",
+          "match": "\\basync\\b"
+        },
+        {
+          "name": "keyword.control.flow.shya",
+          "match": "\\b(?:await|return|throw|try|catch|finally)\\b"
+        },
+        {
+          "name": "keyword.control.import-export.shya",
+          "match": "\\b(?:import|from|export|as)\\b"
+        },
+        {
+          "name": "keyword.operator.type.shya",
+          "match": "\\b(?:is|not|instanceof|typeof|new)\\b"
+        },
+        {
+          "name": "storage.type.declare.shya",
+          "match": "\\bdeclare\\b"
+        },
+        {
+          "name": "constant.language.boolean.shya",
+          "match": "\\b(?:true|false)\\b"
+        },
+        {
+          "name": "constant.language.void.shya",
+          "match": "\\bvoid\\b"
+        },
+        {
+          "name": "variable.language.this.shya",
+          "match": "\\bthis\\b"
+        }
+      ]
+    },
+
+    "wildcard": {
+      "comment": "`_` is the shya placeholder: a no-op statement, or the 'no target' marker in a macro call. It is not a usable variable name.",
+      "patterns": [
+        {
+          "name": "variable.language.wildcard.shya",
+          "match": "(?<![\\w$\\u00A1-\\uFFFF])_(?![\\w$\\u00A1-\\uFFFF])"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,64 @@
+// shya 核心示例：设计稿里出现过的语法
+define a = 100
+define half = a / 2
+
+let label: string = "shya"
+
+fn describe(name: string, times: number): string {
+  let out = name
+  for i of @range 0:times,1 {
+    out = out + "!"
+  }
+  return out
+}
+
+fn main() {
+  console log(describe(label, 3))
+  console log(a + a, half)
+  console log(~pi, ~lg10, ~db10, ~ln4)
+  console log(~deg2, ~ln~deg360, ~sqrt2)
+  console log("chained:", 1 < 2 < 3)
+
+  if 1 < 2 < 3 {
+    console log("chained comparison ok")
+  } elif false {
+    _
+  } else {
+    console log("impossible")
+  }
+
+  case label {
+    "shya","noname": console log("matched")
+    "other": fallthrough
+    default: console log("default")
+  }
+
+  let arr = [3, 1, 4, 1, 5]
+  console log(arr @len)
+  console log(arr slice(1, 3) indexOf(4))
+  console log(arr [0])
+
+  for i of @range 0:arr @len,2 {
+    console log("even index", i)
+  }
+
+  let bag = { x: 1, y: 2 }
+  console log(bag @keys, bag @values, bag @entries)
+  let m = new Map()
+  let st = new Set()
+  console log(m @len, st @len, label @len)
+
+  let s = `k=${1 + 1}`
+  console log(s)
+
+  let n = 0
+  for n < 3 {
+    n++
+  }
+  console log("n =", n)
+
+  console log(9 ~/ 2, 9 +/ 2, 9 -/ 2, 9 \/ 2, 2 ^ 10, 7 % 3)
+  console log(void, 1 is number, arr is array, label is string)
+}
+
+main()

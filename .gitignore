@@ -1,0 +1,21 @@
+# build output
+build/
+*.obj
+*.pdb
+*.ilk
+*.exe
+
+# compiler output (generated .mjs lives next to its source)
+*.mjs
+!tests/run.mjs
+!vscode-shya/build-vsix.mjs
+!vscode-shya/grammar-smoke.mjs
+!vscode-shya/extension-smoke.mjs
+
+# test scratch
+tests/.tmp/
+
+# editor
+.vscode/
+.idea/
+.codeartsdoer/

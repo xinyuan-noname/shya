@@ -1,0 +1,42 @@
+// 文档对照检查：产物必须与参考手册「编译产物对照表」一致
+let calls = 0
+
+fn tick(): number {
+  calls = calls + 1
+  return 2
+}
+
+fn check(x) {
+  console log(x is void, x is object, x is fn, x is number)
+}
+
+fn pair() {
+  let a = 1
+  let b = 2
+  a, b = b, a
+  console log(a, b)
+}
+
+fn chain() {
+  console log(1 < 2 < 3)
+  console log(nextVal() < 2 < nextVal())
+  // 中间操作数有副作用时必须只求值一次
+  console log(1 < tick() < 5, calls)
+}
+
+fn nextVal() {
+  return 1
+}
+
+fn main() {
+  check(void)
+  pair()
+  chain()
+  let f = @ts{(x) => x}
+  console log(f?(1))
+  for k v of @entries({ a: 1 }) {
+    console log(k, v)
+  }
+}
+
+main()

@@ -1,0 +1,27 @@
+enumerate 0 3
+enumerate 1 1
+enumerate 2 4
+enumerate 3 1
+enumerate 4 5
+zip 3 a
+zip 1 b
+zip 4 c
+zip 1 d
+zip 5 e
+items 一 1
+items 二 2
+sum 14
+max 5
+min 1
+sorted [ 1, 1, 3, 4, 5 ]
+reversed [ 5, 1, 4, 1, 3 ]
+unique [ 3, 1, 4, 5 ]
+count 5
+join 1-1-3-4-5
+strip/upper HELLO, WORLD
+split Hello|World
+mod 2 -1
+clamp 10
+str/repr 42 [3,1,4,1,5]
+通过：xs 非空
+失败：空序列应为假
