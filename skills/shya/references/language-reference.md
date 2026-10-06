@@ -18,6 +18,11 @@
 9. [诊断码表](#9-诊断码表)
 10. [已知限制](#10-已知限制)
 
+相关文档：[`ast-nodes.md`](ast-nodes.md)（AST 节点与宏插槽类型）、
+[`python-users.md`](python-users.md)（Python 用户对照）、
+[`compiler-architecture.md`](compiler-architecture.md)（编译器内部）、
+[`decisions.md`](decisions.md)（设计稿歧义处的取舍）。
+
 ---
 
 ## 1. 快速开始
@@ -98,15 +103,16 @@ main();
 ```
 if  elif  else  case  default  fallthrough
 for  of  break  continue
-let  const  define  macro
+let  const  define  declare  macro
 fn  async  await  return  throw  try  catch  finally
 import  from  export  as
 is  not  instanceof  typeof  new
-true  false  this  void  null  undefined
+true  false  this  void
 ```
 
-`is not`、`not instanceof` 是两个词构成一个运算符。
-`null` 与 `undefined` 都写作 `void`（两者是等价的别名，产物统一为 `undefined`）。
+`is not`、`not instanceof` 是两个词构成一个运算符，两种词序 `is not` / `not is` 都接受。
+**`void` 是唯一的空值字面量**：`null` 与 `undefined` 已从语言中移除，写出来会报 `LEX009`
+（`@ts{...}` 里的原始 JS 不受此限制，那里可以照常写 `null`）。
 
 ### 2.3 数值字面量
 
@@ -185,7 +191,7 @@ shya 是强类型语言，类型标注语法与 TypeScript 一致，但**只有�
 | `number` / `int` / `float` / `double` | 数值 |
 | `string` | 字符串 |
 | `boolean` / `bool` | 布尔 |
-| `void` / `null` / `undefined` | 空值 |
+| `void` | 空值（**语言里只有 `void`，没有 `null` / `undefined`**） |
 | `array<T>` / `T[]` / `list<T>` | 数组 |
 | `map<K,V>` / `record<K,V>` | 映射 |
 | `set<T>` | 集合 |
@@ -196,7 +202,7 @@ shya 是强类型语言，类型标注语法与 TypeScript 一致，但**只有�
 | `never` | 永不返回 |
 | 联合 `A \| B` | 联合类型 |
 | 字面量类型 `"red"` / `3` | 字面量类型 |
-| 其它标识符 | 宿主类型（`Player`、`Card`…） |
+| 其它标识符 | 宿主类型（`Player`、`Card`…），用 [`declare`](#511-declare-声明外置宿主对象) 补充结构 |
 
 ### 3.2 标注位置
 
@@ -227,9 +233,13 @@ x is void           // x === undefined
 x is object         // typeof x === "object" && x !== null
 x is Player         // x instanceof Player（宿主类型）
 x is not array      // 取反
+x not is array      // 同上，另一种词序
 x instanceof Date   // 原生 instanceof
 x not instanceof Date
 ```
+
+`is` 右侧写成 `void` 时编译成 `x === undefined`；**不存在 `is null` / `is undefined`**
+（这两个词已经不是关键字，会按宿主类型名处理）。
 
 当 `x` 有副作用时，编译器会把它提升成一个临时函数参数，保证只求值一次：
 
@@ -539,6 +549,54 @@ _ @judge_color {
 
 `_` 作为普通变量名是不可用的。
 
+### 5.11 `declare` —— 声明外置（宿主）对象
+
+shya 不能自定义类，但可以**声明**宿主提供的对象长什么样。`declare` 只参与类型检查，
+**不产出任何 JavaScript**：
+
+```shya
+declare Card {
+  suit: string
+  rank: number
+}
+
+declare Player {
+  name: string              // 字段：编译成属性读取
+  hp: number
+  hand: array<Card>
+  judge(): Card             // 方法：编译成函数调用
+  recover(n: number): void
+  say(msg: string): Player
+  draw(n: number = 1): void
+  note?: string             // 可选字段
+}
+
+declare fn hostRandom(max: number): number
+declare fn hostLog(msg: string, level?: number): void
+```
+
+声明之后：
+
+- **字段**（`name: T`）读的是属性：`p name` 编译成 `p.name`；
+- **方法**（`judge(): T`）生成调用：`p judge` 编译成 `p.judge()`；
+- 成员类型参与检查：`p recover("oops")` 报 `TC003`；`hostRandom()` 报 `TC006`；
+- 访问未声明的成员是**警告** `TC014`，并给出补声明的位置；
+- `declare fn` 的名字进入作用域，可直接调用，参数与返回值都参与检查。
+
+```shya
+fn main() {
+  let p: Player = @ts{makePlayer()}
+  console log(p name, p hp)     // -> p.name, p.hp
+  let c: Card = p judge         // -> p.judge()
+  p recover(2)                  // -> p.recover(2)
+  for card of p hand {          // -> for (const card of p.hand)
+    console log(card suit)      // -> card.suit
+  }
+}
+```
+
+`declare` 里写的默认值只描述宿主契约，**不会**由编译器注入到调用点；宿主自己要有默认值。
+
 ---
 
 ## 6. 宏
@@ -563,17 +621,19 @@ macro @judge_color(#target: Player, #red: stmt, #black: stmt, #none: stmt) {
 ```
 
 - 插槽参数写成 `#名字`，可变参数写成 `...#名字`（只能标注为 `expr[]` 或其子类型）。
-- 插槽可标注类型；不标注默认为 `expr`。可用类型：
+  插槽名可以是关键字，例如 `#from`、`#default`。
+- 插槽可标注类型；不标注默认为 `expr`。可用类型分三类：
 
-  | 插槽类型 | 接受 |
+  | 类别 | 名字 |
   | --- | --- |
-  | `expr` | 任意表达式（默认） |
-  | `stmt` | 语句；传表达式时会自动包成一条语句 |
-  | `expr[]` | 不定项 |
-  | `callExpr` | 调用片段，如 `recover(2)` |
-  | `safeCallExpr` | 安全调用片段，如 `say?(x)` |
-  | `rangeExpr` | 范围表达式 `start:end,step` |
-  | `type` | 类型名 |
+  | 基础类别 | `expr`（默认）、`stmt`、`type`、`expr[]` |
+  | 语义插槽 | `callExpr`（调用片段）、`safeCallExpr`（安全调用片段） |
+  | **AST 节点种类** | `ident` `numLit` `strLit` `binary` `call` `member` `arrayLit` `ifStmt` `block` … |
+
+  **大部分安全的 AST 节点都能直接当插槽类型用**，例如 `#cond: compare` 只接受比较表达式、
+  `#b: block` 只接受块、`#lit: strLit` 只接受字符串字面量。传错会报 `MAC015` 并指出实际节点种类。
+  完整的名字表、以及哪些宏模板内部节点被刻意排除在外，见
+  [`ast-nodes.md`](ast-nodes.md)。
 
 - 宏体本身也必须符合 shya 语法。
 
@@ -631,8 +691,10 @@ macro @len(#x) {
 
 - 分支只有一支时可省略花括号、直接接一条语句/表达式。
 - 两支时写成 `{ y: ...  n: ... }`（`#y:` / `#n:` 也可以）。
-- 条件可用 `is`（插槽形态 `expr`/`stmt`/`callExpr`/`safeCallExpr`/`rangeExpr`，或静态类型
-  `array`/`string`/`number`/`boolean`/`object`/`map`/`set`/`fn`/`void`/`unknown`）、`||`、`&&`、`!`。
+- 条件可用 `is`（插槽形态 `expr`/`stmt`/`callExpr`/`safeCallExpr`/`rangeExpr`，静态类型
+  `array`/`string`/`number`/`boolean`/`object`/`map`/`set`/`fn`/`void`/`unknown`，
+  或任意 AST 节点种类如 `binary`/`call`/`strLit`）、`||`、`&&`、`!`。
+- 判定顺序是：插槽形态 → 值类型 → AST 节点种类；判定是三值的，`unknown` 不会命中任何分支。
 - **一个分支都没匹配是编译错误**（`MAC020`），不会静默生成空代码。
 
 #### `@each(#项 of #列表) { ... }` —— 编译期遍历不定项插槽
@@ -650,7 +712,25 @@ macro @share(#x, #y, ...#slots: callExpr) {
 
 系统宏，只能在 `for ... of` 的遍历位置使用，展开成计数循环（见 [5.6](#56-循环)）。
 
-### 6.4 宏展开的时机
+### 6.4 宏文件导入
+
+宏文件和普通模块**用同一套 import 语法**，只是路径以 `.shya` 结尾：
+
+```shya
+import "./pystd.shya"                            // 导入文件里全部宏
+import { @enumerate, @zip } from "./pystd.shya"  // 只导入这几个
+import { @keys as k } from "./my.shya"           // 改名（语法上接受）
+```
+
+- 路径以 `./`、`../` 开头时相对**当前源文件**解析；否则依次在源文件所在目录和 `-I` 指定的
+  搜索根下查找。
+- 具名导入会**自动带上被依赖的宏**：`import { @assertAny } from "…"` 会把 `@assertAny` 用到的
+  `@any` 一起注册，不必手写。
+- 被导入文件里的 `define` 与 `declare` 会一并进入导入方。
+- 宏导入**完全不产出 JavaScript**；被导入的文件自己也可以导入别的 `.shya`，循环导入报 `MOD002`。
+- 宏文件里不能导入 `.js`/`.mjs`（`MOD004`）；普通 JS 模块的 import 原样透传，行为不变。
+
+### 6.5 宏展开的时机
 
 宏展开发生在类型检查**之前**，因此：
 
@@ -658,7 +738,7 @@ macro @share(#x, #y, ...#slots: callExpr) {
 - `@when` 的类型判断依赖一个**启发式静态类型环境**（扫描 `let x = 字面量` 与参数标注），
   精度有限——类型确实无法确定时会报 `MAC020`，此时请补上类型标注或改写成 `@ts`。
 
-### 6.5 设计稿中的三个链式宏示例
+### 6.6 设计稿中的三个链式宏示例
 
 ```shya
 d @safe say("hello") say("nice")
@@ -698,7 +778,30 @@ player nextSeat @safe_share _q recover(2) draw(2)
 `@len` 只认 `array` / `string` / `map` / `set`；**对象字面量不是 map**，`{a:1} @len` 会报 `MAC020`，
 请改用 `new Map()` 或显式标注类型。
 
-标准库源码：
+### 7.1 Python 用户的宏库 `lib/pystd.shya`
+
+项目自带一份面向 Python 用户的宏库 [`lib/pystd.shya`](../lib/pystd.shya)，用法和其它模块一样：
+
+```shya
+import { @enumerate, @zip, @items, @sum, @sorted } from "../lib/pystd.shya"
+import { @upper, @strip, @mod } from "../lib/pystd.shya"
+
+for i v of @enumerate(xs) { }        // for i, v in enumerate(xs)
+for a b of @zip(xs, ys) { }          // for a, b in zip(xs, ys)
+for k v of @items(d) { }             // for k, v in d.items()
+console log(xs @sum, xs @sorted)     // sum(xs), sorted(xs)
+console log((-7) @mod(3))            // Python 的 % 语义 -> 2
+```
+
+提供 `@enumerate` `@zip` `@items` `@count` `@first` `@last` `@sum` `@max` `@min` `@sorted`
+`@reversed` `@unique` `@any` `@all` `@join` `@upper` `@lower` `@strip` `@split` `@replace`
+`@startswith` `@endswith` `@find` `@abs` `@round` `@int` `@float` `@pow` `@mod` `@clamp`
+`@str` `@bool` `@typeOf` `@repr` `@assertAny` `@assertAll`。
+
+逐条对照（含 `%` 符号、成员访问、换行这三个主要陷阱）见
+[`python-users.md`](python-users.md)。
+
+### 7.2 标准库源码
 
 ```shya
 macro @keys(#x) {
@@ -775,6 +878,10 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 | `x = 1; x = 2` | `let x = 1; x = 2;` |
 | `x += 1` | `x += 1;` |
 | `x ^= 2` | `x **= 2;` |
+| `declare Player { name: string }` + `p name` | `p.name`（字段，不加括号） |
+| `declare Player { judge(): Card }` + `p judge` | `p.judge()`（方法，自动加括号） |
+| `declare fn hostRandom(n: number): number` | （不生成，调用点按普通函数调用） |
+| `import { @sum } from "./pystd.shya"` | （不生成，宏在编译期注册） |
 | `define A = 100` | （不生成，就地替换为 `100`） |
 | `for i of @range 0:9,2` | `for (let i = 0; i < 9; i += 2)` |
 | `for n < 3 { }` | `while (n < 3) { }` |
@@ -790,11 +897,12 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 
 | 前缀 | 阶段 | 例 |
 | --- | --- | --- |
-| `LEX` | 词法分析 | `LEX002` 无法识别的字符；`LEX006` 数学字面量缺少参数 |
-| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外 |
-| `MAC` | 宏展开/脱糖 | `MAC014` 未定义的宏；`MAC016` 缺少参数；`MAC020` `@when` 无分支匹配 |
-| `TC` | 类型检查 | `TC003` 类型不符；`TC006` 参数个数不符；`TC010` 未声明的标识符（警告）；`TC013` const 重赋值 |
-| `CGN` | 代码生成 | `CGN004` 无法处理的节点（编译器内部错误） |
+| `LEX` | 词法分析 | `LEX002` 无法识别的字符；`LEX006` 数学字面量缺少参数；`LEX009` 写了 `null`/`undefined` |
+| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN023`+ `declare` 相关 |
+| `MOD` | 宏文件导入 | `MOD001` 找不到宏文件；`MOD002` 循环导入；`MOD003` 宏文件本身有错；`MOD004` 宏文件里导入了非 `.shya`；`MOD005` 该文件没有这个宏 |
+| `MAC` | 宏展开/脱糖 | `MAC014` 未定义的宏；`MAC015` 插槽类型不符；`MAC016` 缺少参数；`MAC020` `@when` 无分支匹配 |
+| `TC` | 类型检查 | `TC003` 类型不符；`TC006` 参数个数不符；`TC010` 未声明的标识符（警告）；`TC013` const 重赋值；`TC014` 宿主类型没有该成员（警告） |
+| `CGN` | 代码生成 | `CGN004` 无法处理的节点（编译器内部错误）；`CGN007` `.shya` 导入未被解析 |
 
 调试宏展开时可设置环境变量 `SHYA_DEBUG_WHEN=1`，编译器会在标准错误输出每次 `@when` 判定结果与宏展开的语句数。
 
@@ -802,13 +910,18 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 
 ## 10. 已知限制
 
-- **不能自定义类**：设计如此，标注中的类名只在 `is` / `instanceof` 中对接宿主类型。
-- **`@when` 的类型判定是启发式**：只扫描字面量初始化与显式标注，跨函数/跨语句的复杂推断可能得出
-  `unknown` 并报 `MAC020`。
+- **没有 `null` / `undefined`**：只有 `void`（`@ts{...}` 里的原始 JS 不受限）。
+- **不能自定义类**：设计如此；宿主对象用 [`declare`](#511-declare-声明外置宿主对象) 声明形状。
+- **`@when` 的类型判定是启发式**：只扫描字面量初始化、显式标注与 `declare` 成员，
+  跨函数/跨语句的复杂推断可能得出 `unknown` 并报 `MAC020`。
+- **`declare` 的结构是名义的**：同名即同类型，不做结构化匹配，也不产生运行时校验。
+- **`declare` 的默认值不注入调用点**：宿主实现自己要有默认值。
 - **无结构化类型**：`object` 不带字段信息，`arr[0]` 之外没有元组/记录类型。
-- **无泛型声明**：`<T>` 只在标注中出现，不参与函数泛型推导。
+- **无泛型声明**：`<T>` 只在标注中出现，不参与函数泛型推导；`declare Name<T>` 直接报错。
 - **`case` 分支体只有一条语句**，多条需自行加块。
 - **无位运算**（设计如此），需要时用 `@ts`。
-- **`@ts` 内的代码不参与类型检查**。
+- **`@ts` 内的代码不参与类型检查**（但其中的 `#插槽` 替换是真实节点，会被检查）。
 - **箭头函数不提供专门语法**：请用 `fn` 声明或 `@ts`。
 - **`switch` 的 `default` 写在最前时会退化成一个普通块**（罕见，见 `docs/decisions.md`）。
+- **宏文件之间没有隔离**：宏名是全局的，具名导入只做「按需注册 + 依赖闭包」，
+  不支持同名覆盖或命名空间。

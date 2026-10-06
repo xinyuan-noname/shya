@@ -144,12 +144,14 @@ parsePrimary`。
 - `parseAssignment` 先解析逗号分隔的目标列表，只有看到 `=` 才构造 `NK::Assign`；否则单
   元素直接返回，多元素退化成一个 `ArrayLit(flag=true)`——即**逗号序列**，只对 `for` 头
   有意义。**复合赋值**在 `=` 之前单独试一遍 `kCompound[] = {"+=", "-=", "*=", "/=", "%=",
-  "^=", "**="}`：命中就构造 `NK::Assign`，`text` 记去掉 `=` 的运算符（`strlen(op)-1`），
-  `targets` 是那个唯一目标、`values[0] = parseAssignment()`（右结合）。所以 `x ^= 2` 的
-  `text` 是 `"^"`，代码生成再补成 `**=`。它和 `++`/`--` 一样**只能作语句**：
-  `parseAssignment` 的复合分支只被 `parseStatement` 这条链调用到，`parseTernary` 及以上
-  的层级不会经过它，所以 `y = (x += 1)` 里的 `x += 1` 会先走括号里的 `parseExpression()`
-  → `parseAssignment()`，变成一次普通赋值（见 10.6 的 `NK::Assign` 分支）。
+  "^=", "**="}`，且只在目标列表恰好一项时尝试：命中就构造 `NK::Assign`，`text` 记去掉 `=`
+  的运算符（`std::strlen(op) - 1`），`targets` 是那个唯一目标、`values[0] =
+  parseAssignment()`（右结合）。所以 `x ^= 2` 的 `text` 是 `"^"`，代码生成再补成 `**=`。
+  它和 `++`/`--` 一样**只能作语句**：`parseAssignment()` 也被 `parseExpression()`（即括号
+  表达式）调用，所以 `y = (x += 1)` 里的 `x += 1` 确实会构造出一个复合赋值节点，但它待在
+  表达式位置、没有被 `genStatement` 消费，实测报 `CGN004`（"代码生成阶段遇到无法处理的
+  节点 `Assign`"）。也就是说这条"只能作语句"的约束由**生成阶段**兜底，不是解析阶段拒绝
+  （见 10.6 的 `NK::Assign` 分支）。
 - `parsePostfix` 吃成员访问（`player getHp`）、`#slot` 形式成员、调用 `(...)`、安全调用
   `?(...)`、下标 `[...]`、后缀宏 `@op`、`++/--`。
 - `parseStatement()` 分派 `if/case/for/try/fn/async fn/macro/define/declare/let/const/
@@ -181,7 +183,8 @@ parsePrimary`。
   - **函数形式** `declare fn name(params): Ret`：`flag = true`，`text` = 函数名，
     `typeAnn2` = 返回类型（缺省 `"void"`）。
   诊断：`SYN023`（`declare fn` 缺函数名）、`SYN024`（`declare` 后既不是名字也不是 `fn`）、
-  `SYN025`（写了泛型参数 `<…>`，声明里不支持，参数被跳过）、`SYN026`（成员缺名字）。
+  `SYN025`（写了泛型参数 `<…>`："`declare` 暂不支持泛型参数"，参数 token 被跳到 `>`）、
+  `SYN026`（成员缺名字）。
   `declare` 是关键字，核心 AST 里由类型检查器和代码生成各自处理：前者收集成宿主类型，
   后者直接不产出任何代码（见 9.2、10.7）。
 - 类型标注 `parseTypeAnnotation()` 只做**规格化字符串**：`bool`→`boolean`，
@@ -326,6 +329,8 @@ std::vector<std::vector<NK>> paramKinds;  // 这个槽精确接受的 NK 种类�
 `astKindsForTypeName(name)` 查 `astKindTable()`，命中就得到它接受的 `NK` 集合。
 `astSlotTypeNames()` 是"值类型/槽类型名 + 全部节点种类名"的合并清单，供文档与诊断使用。
 于是 `macro @swapIf(#cond: compare, #yes: stmt)` 能要求第一个实参**必须**是比较节点。
+每种节点各自的 `text`/`flag`/`list` 约定见 `docs/ast-nodes.md`，本节的表只负责
+"名字 ↔ `NK`"的映射（权威定义是 `src/shya.h` 的 `NK` 枚举 + `macro.cpp` 的 `astKindTable()`）。
 
 | 类型名 | 接受的 NK |
 | --- | --- |
@@ -374,9 +379,16 @@ std::vector<std::vector<NK>> paramKinds;  // 这个槽精确接受的 NK 种类�
 | `exprStmt` | `ExprStmt` |
 
 表里共 42 项，每项只映射一个 `NK`（`astKindTable()` 用 `std::vector<NK>` 是为了以后能收
-多个）。**宏模板内部节点故意不可寻址**：`program`、`empty`、`macroDecl`、`when`、
-`whenArm`、`each`、`slotList`、`optionalize`、`typeRef` 都不在表里——把一个模板节点替换
-进模板就是在改写模板自身，`astKindTable()` 上方的注释写明了这条理由。
+多个）。**宏模板内部节点故意不可寻址**，共九个名字：`program`、`empty`、`macroDecl`、
+`when`、`whenArm`、`each`、`slotList`、`optionalize`、`typeRef` ——把一个模板节点替换进
+模板就是在改写模板自身，`astKindTable()` 上方的注释写明了这条理由。
+
+表里 `rangeExpr` 一项是**不可达的**：`slotTypeFromName("rangeExpr")` 先返回
+`SlotType::RangeExpr`，`@when` 的槽类型分支也先于节点分支；而且
+`parseRangeOrExpr(allowRange)` 只在 `allowRange` 为真时建 `NK::RangeExpr`，那只发生在宏名
+字面是 `range` 的时候（`parseMacroApply` 里 `if (n->text == "range" && prefix)` 与
+`parseRangeOrExpr(n->text == "range")`），所以普通宏的 `#x: rangeExpr` 参数永远收不到
+范围实参。
 
 绑定期的判定顺序（`bindArguments`）是：先是 `Stmt` 槽的"表达式自动包 `ExprStmt`"，
 再是 `paramKinds[i]` 非空时的**精确种类**比对（`SafeCallExpr` 槽额外接受 `Call{flag}`），
@@ -393,8 +405,9 @@ std::vector<std::vector<NK>> paramKinds;  // 这个槽精确接受的 NK 种类�
 `compare`/`strLit`/`block` 三种正常路径。
 
 `evalWhen()` 也认识这些名字，所以 `@when(#x is binary)` 在编译期就能选分支：判定顺序是
-**槽类型名 → 值类型名 → AST 节点种类**，且保持三值语义——`want` 不在两张表里一律
-`Unknown`，`Unknown` 不选任何分支。
+**槽类型名（`stmt`/`callExpr`/`safeCallExpr`/`rangeExpr`/`expr`）→ 值类型名 →
+AST 节点种类**，且保持三值语义——`want` 不在这些表里一律 `Unknown`，`Unknown` 不选任何
+分支。命中节点种类表时结果是确定的 `True`/`False`（不再是 `Unknown`）。
 
 ## 6. 编译期常量
 
