@@ -59,11 +59,11 @@ never highlighted as `~` + `/`.
 ### From the packaged `.vsix`
 
 ```sh
-code --install-extension shya-0.2.1.vsix
+code --install-extension shya-0.2.2.vsix
 ```
 
 Or in VS Code: **Extensions** view → `…` menu → **Install from VSIX…** → pick
-`shya-0.2.1.vsix`.
+`shya-0.2.2.vsix`.
 
 ### From source
 
@@ -171,6 +171,43 @@ node grammar-smoke.mjs ../examples/card-game.shya
 node test/extension.test.mjs
 node test/formatter.test.mjs
 ```
+
+## Troubleshooting
+
+### `shya: cannot write \`…\``
+
+The preview and `shya.compile` both need the compiler to write a file, so this message means
+the compiler process was not allowed to write where it was asked to. Work through these in
+order — the first one is by far the most common, and it is **not** a permissions problem:
+
+1. **Where the compiler executable lives.** If `shya.exe` sits inside a directory governed by
+   a sandbox or restricted-execution policy (a container-mounted or agent-managed workspace,
+   a folder under controlled-folder-access), a process started from there may be confined to
+   writing back inside that same directory — while a copy of the identical binary placed
+   elsewhere writes normally. Verified behaviour: the same `shya.exe` failed to write a file
+   into a project folder from its original location, and succeeded immediately after being
+   copied out. `shya.exe` is a single self-contained file, so the fix is simply to move it:
+
+   ```powershell
+   New-Item -ItemType Directory -Force C:\tools\shya
+   Copy-Item D:\project\shya\build\shya.exe C:\tools\shya\shya.exe
+   ```
+
+   Then point `shya.compilerPath` at `C:\\tools\\shya\\shya.exe`. Confirm it directly with
+   `C:\tools\shya\shya.exe build yourfile.shya` in the directory that was failing; if that
+   writes `yourfile.mjs` next to the source, the extension will work too.
+
+2. **The target directory really is read-only.** Check with an unrelated program:
+   `cmd /c "echo x > probe.txt"`. If that fails too, it is a genuine permission problem —
+   fix the folder's permissions instead.
+
+3. **Security software.** Controlled folder access and some endpoint agents block writes from
+   binaries they do not recognise. Allow `shya.exe`, or move it as in point 1.
+
+The extension compiles a temporary copy next to your source file — never your actual file —
+because `import "./x.shya"` resolves relative to the importing file. If the compiler cannot
+write beside the source, it retries with its output in the system temp directory; if both
+fail, the panel lists the two directories that were tried.
 
 ## License
 

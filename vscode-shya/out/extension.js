@@ -240,8 +240,12 @@ async function compileText(document, text) {
   if (second.ok || !/cannot write/i.test(second.diagnosticsText)) {
     if (!second.ok) {
       second.diagnosticsText +=
-        `\n\n提示：编译器既写不进源文件所在目录，也写不进系统临时目录 ` +
-        `${os.tmpdir()}。请检查两个目录的写入权限（安全软件/受控文件夹访问经常会拦这个）。`;
+        `\n\n提示：编译器既写不进源文件所在目录，也写不进系统临时目录 ${os.tmpdir()}。\n` +
+        `这种情况通常不是文件权限问题，而是**编译器可执行文件所在的位置**：\n` +
+        `如果 "${configuration().compilerPath}" 位于一个被沙箱/受限策略管辖的目录里，\n` +
+        `从那里启动的进程可能只能写回该目录内部，写到别处一律被拒。\n` +
+        `解决办法：把 shya.exe 复制到一个普通目录（例如 C:\\\\tools\\\\shya\\\\shya.exe），\n` +
+        `再把设置 shya.compilerPath 指过去。shya.exe 是单文件、无依赖，复制即可用。`;
     }
     return second;
   }

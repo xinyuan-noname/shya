@@ -27,5 +27,5 @@ jobs:
           name: shya-windows
           path: |
             build/shya.exe
-            vscode-shya/shya-0.2.1.vsix
+            vscode-shya/shya-0.2.2.vsix
           if-no-files-found: error

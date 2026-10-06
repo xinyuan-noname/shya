@@ -19,3 +19,6 @@ tests/.tmp/
 .vscode/
 .idea/
 .codeartsdoer/
+
+# sandbox ACL repair report (local only)
+.acl-report/

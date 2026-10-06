@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.2
+
+Documents the real cause of the `cannot write` failure, and says so in the panel.
+
+Chasing `shya: cannot write \`…\`` down showed it is not a file-permission problem. The same
+`shya.exe` that failed to write into a project folder succeeded immediately when a copy of it
+was placed outside the directory it was installed in — a process started from a
+sandbox-governed directory can be confined to writing back inside that directory. The
+extension's "both attempts failed" message and the README now name that cause first, with the
+one-line fix (copy `shya.exe` to a neutral directory such as `C:\tools\shya\` and point
+`shya.compilerPath` at it).
+
 ## 0.2.1
 
 Fixes a preview failure reported in the wild:

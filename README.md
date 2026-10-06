@@ -155,17 +155,41 @@ node tests\run.mjs --update     # 重新生成期望产物
 
 ```sh
 cd vscode-shya
-node build-vsix.mjs            # 产出 shya-0.2.1.vsix
-code --install-extension shya-0.2.1.vsix
+node build-vsix.mjs            # 产出 shya-0.2.2.vsix
+code --install-extension shya-0.2.2.vsix
 ```
 
-打包好的 `vscode-shya/shya-0.2.1.vsix` 直接随仓库提供，可手动安装。
+打包好的 `vscode-shya/shya-0.2.2.vsix` 直接随仓库提供，可手动安装。
 
 扩展现在带**格式化器**和**格式化并预览**命令（<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd>）：
 一个命令既格式化当前文件，又在侧边打开实时编译预览（生成的 JS + 诊断），输入时自动刷新。
 格式化器是**纯空白改动**——shya 用换行分隔语句，所以它绝不合并或拆分行，也不碰字符串、
 模板字符串、注释和 `@ts{…}` 内部；`node vscode-shya/test/formatter.test.mjs` 会把仓库里
 全部 19 个 `.shya` 文件格式化后重新编译，要求产物**逐字节相同**。
+
+### 排错：`shya: cannot write \`…\``
+
+这条消息表示**编译器进程没被允许写文件**，不是编译器坏了。按顺序排查：
+
+1. **编译器可执行文件放在哪**（最常见，且**不是权限问题**）。如果 `shya.exe` 位于某个被
+   沙箱/受限策略管辖的目录里（容器挂载的工作区、agent 管理的目录、受控文件夹访问范围），
+   从那里启动的进程可能只能写回该目录内部，写到别处一律被拒 —— 而**同一个文件复制到
+   别处就完全正常**（本机实测：原位置的 `shya.exe` 写不进项目目录，复制出去后立刻成功）。
+   `shya.exe` 是单文件、无依赖，复制即可用：
+
+   ```powershell
+   New-Item -ItemType Directory -Force C:\tools\shya
+   Copy-Item D:\project\shya\build\shya.exe C:\tools\shya\shya.exe
+   ```
+
+   然后在 VS Code 设置里把 `shya.compilerPath` 指到 `C:\\tools\\shya\\shya.exe`。
+   直接在出问题的目录里跑 `C:\tools\shya\shya.exe build 你的文件.shya` 验证一下即可。
+
+2. **目标目录真的只读**：用别的程序试写，例如 `cmd /c "echo x > probe.txt"`。
+   如果它也失败，那才是真的权限问题，去修目录权限。
+
+3. **安全软件**：受控文件夹访问和某些终端防护会拦截它们不认识的二进制。
+   放行 `shya.exe`，或按第 1 条把它挪个位置。
 
 ## 项目结构
 
