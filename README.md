@@ -104,7 +104,8 @@ build.bat debug    # Debug
 | 标准库 | `@keys` `@values` `@entries` `@len` `@safe` `@share` `@safe_share` |
 | Python 宏库 | `lib/pystd.shya`：`@enumerate` `@zip` `@items` `@sum` `@sorted` `@mod` … |
 
-完整说明见 [`docs/shya-language-reference.md`](docs/shya-language-reference.md)。
+完整说明见 [`docs/shya-language-reference.md`](docs/shya-language-reference.md)；
+**第一次上手请看 [`docs/getting-started.md`](docs/getting-started.md)**（每段代码都跑过）。
 
 ## 示例
 
@@ -179,6 +180,7 @@ lib/pystd.shya                 面向 Python 用户的宏库
 vscode-shya/                   VS Code 扩展（源码 + 打包好的 .vsix）
 examples/                      可运行示例
 docs/
+  getting-started.md           从零开始写第一个 shya 程序（每段代码都实测过）
   shya-language-reference.md   语言参考手册
   ast-nodes.md                 AST 节点与宏插槽类型全表
   python-users.md              Python -> shya 对照与语义陷阱

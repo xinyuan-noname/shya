@@ -8,6 +8,7 @@ description: Write, review, and compile shya — a strongly-typed DSL that compi
 **shya** 是一门强类型规则脚本语言，编译成 **ES2026** JavaScript。关键字：
 最近自然语言的语法 + 宏做模板复用 + 宿主桥 + 零运行时产物。
 
+- 上手教程：[`references/getting-started.md`](references/getting-started.md)
 - 语言参考：[`references/language-reference.md`](references/language-reference.md)
 - AST 节点与宏插槽类型全表：[`references/ast-nodes.md`](references/ast-nodes.md)
 - Python 用户对照：[`references/python-users.md`](references/python-users.md)
