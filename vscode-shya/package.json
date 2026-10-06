@@ -1,16 +1,17 @@
 {
   "name": "shya",
   "displayName": "shya",
-  "description": "Language support for shya, a strongly-typed DSL that compiles to ES2026 JavaScript: syntax highlighting, snippets, bracket/folding rules and a compile command.",
+  "description": "Language support for shya, a strongly-typed DSL that compiles to ES2026 JavaScript: syntax highlighting, snippets, a formatter, a combined format-and-preview command and a compile command.",
   "publisher": "xinyuan-noname",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
   },
   "categories": [
     "Programming Languages",
-    "Snippets"
+    "Snippets",
+    "Formatters"
   ],
   "keywords": [
     "shya",
@@ -72,15 +73,76 @@
           "type": "string",
           "default": ".mjs",
           "description": "Extension used for the -o output file produced by the compile command."
+        },
+        "shya.indentSize": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 8,
+          "description": "Spaces per indentation level used by the formatter."
+        },
+        "shya.formatOnPreview": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Format the document before opening the preview (`shya: 格式化并预览`). Turn this off to preview exactly what is in the buffer."
+        },
+        "shya.previewLive": {
+          "type": "boolean",
+          "default": true,
+          "description": "Recompile the preview panel while you type. Turn this off to only refresh on save."
         }
       }
     },
     "commands": [
       {
+        "command": "shya.formatAndPreview",
+        "title": "格式化并预览",
+        "category": "shya",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "shya.format",
+        "title": "格式化文档",
+        "category": "shya",
+        "icon": "$(edit)"
+      },
+      {
         "command": "shya.compile",
         "title": "Compile File",
         "category": "shya",
         "icon": "$(gear)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "shya.formatAndPreview",
+          "when": "editorLangId == shya",
+          "group": "navigation@1"
+        },
+        {
+          "command": "shya.compile",
+          "when": "editorLangId == shya",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "shya.formatAndPreview",
+          "when": "editorLangId == shya"
+        },
+        {
+          "command": "shya.format",
+          "when": "editorLangId == shya"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "shya.formatAndPreview",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p",
+        "when": "editorLangId == shya"
       }
     ]
   },

@@ -259,6 +259,7 @@ const FILES = [
   "CHANGELOG.md",
   "LICENSE",
   "out/extension.js",
+  "out/formatter.js",
   "syntaxes/shya.tmLanguage.json",
   "snippets/shya.json",
 ];
@@ -318,29 +319,33 @@ function checkJsonExistence() {
 }
 
 /**
- * Exercise out/extension.js against a stubbed VS Code API. Best effort: it needs to spawn
- * a child node process, which some sandboxes refuse; a refusal is reported, not fatal.
+ * Exercise out/extension.js and out/formatter.js. The extension test needs to spawn a
+ * child node process, which some sandboxes refuse; a refusal is reported, not fatal.
  */
 function checkExtension() {
   const entry = path.join(ROOT, "out", "extension.js");
   if (!fs.existsSync(entry)) {
     throw new Error("out/extension.js is missing");
   }
+  if (!fs.existsSync(path.join(ROOT, "out", "formatter.js"))) {
+    throw new Error("out/formatter.js is missing");
+  }
   JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 
-  const runner = path.join(ROOT, "extension-smoke.mjs");
-  if (!fs.existsSync(runner)) {
-    console.log("skip extension smoke test: extension-smoke.mjs not present");
-    return;
-  }
-
-  const result = spawnSync(process.execPath, [runner], { cwd: ROOT, stdio: "inherit" });
-  if (result.error) {
-    console.log(`skip extension smoke test: could not spawn node (${result.error.code || result.error.message})`);
-    return;
-  }
-  if (result.status !== 0) {
-    throw new Error(`extension smoke test failed with exit code ${result.status}`);
+  for (const runner of ["test/extension.test.mjs", "test/formatter.test.mjs"]) {
+    const full = path.join(ROOT, runner);
+    if (!fs.existsSync(full)) {
+      console.log(`skip ${runner}: not present`);
+      continue;
+    }
+    const result = spawnSync(process.execPath, [full], { cwd: ROOT, stdio: "inherit" });
+    if (result.error) {
+      console.log(`skip ${runner}: could not spawn node (${result.error.code || result.error.message})`);
+      continue;
+    }
+    if (result.status !== 0) {
+      throw new Error(`${runner} failed with exit code ${result.status}`);
+    }
   }
 }
 
@@ -432,6 +437,7 @@ function main() {
     "extension/CHANGELOG.md",
     "extension/LICENSE",
     "extension/out/extension.js",
+    "extension/out/formatter.js",
     "extension/syntaxes/shya.tmLanguage.json",
     "extension/snippets/shya.json",
     "[Content_Types].xml",

@@ -155,11 +155,17 @@ node tests\run.mjs --update     # 重新生成期望产物
 
 ```sh
 cd vscode-shya
-node build-vsix.mjs            # 产出 shya-0.1.0.vsix
-code --install-extension shya-0.1.0.vsix
+node build-vsix.mjs            # 产出 shya-0.2.0.vsix
+code --install-extension shya-0.2.0.vsix
 ```
 
-打包好的 `vscode-shya/shya-0.1.0.vsix` 直接随仓库提供，可手动安装。
+打包好的 `vscode-shya/shya-0.2.0.vsix` 直接随仓库提供，可手动安装。
+
+扩展现在带**格式化器**和**格式化并预览**命令（<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd>）：
+一个命令既格式化当前文件，又在侧边打开实时编译预览（生成的 JS + 诊断），输入时自动刷新。
+格式化器是**纯空白改动**——shya 用换行分隔语句，所以它绝不合并或拆分行，也不碰字符串、
+模板字符串、注释和 `@ts{…}` 内部；`node vscode-shya/test/formatter.test.mjs` 会把仓库里
+全部 19 个 `.shya` 文件格式化后重新编译，要求产物**逐字节相同**。
 
 ## 项目结构
 

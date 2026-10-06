@@ -10,7 +10,7 @@ build/
 !tests/run.mjs
 !vscode-shya/build-vsix.mjs
 !vscode-shya/grammar-smoke.mjs
-!vscode-shya/extension-smoke.mjs
+!vscode-shya/test/*.mjs
 
 # test scratch
 tests/.tmp/

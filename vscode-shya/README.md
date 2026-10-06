@@ -12,7 +12,32 @@ ES2026 JavaScript.
 | Bracket matching & auto-closing | `{}`, `[]`, `()`, `""`, `''`, `` `` ``, `/* */` |
 | Folding | `{` … `}`, `(` … `)`, plus `// region` / `// endregion` markers |
 | Indentation | Increases after an unclosed `{` or `(`, decreases on `}` / `)` |
-| Compile command | `shya.compile` runs the compiler and shows its output |
+| **Formatter** | `shya: 格式化文档`, or the standard **Format Document** (<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd>) |
+| **Format + preview** | `shya: 格式化并预览` (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd>) — formats, then opens a live side panel |
+| Compile command | `shya.compile` runs the compiler and writes `<file>.mjs` |
+
+### Format + preview
+
+`shya: 格式化并预览` does two things in one command:
+
+1. **formats** the active file in place (undoable, one edit);
+2. opens a **preview panel beside the editor** showing the generated JavaScript and the
+   compiler's diagnostics. The panel refreshes ~400 ms after you stop typing, and again on
+   save. Errors also land in the Problems panel with their shya codes (`TC003`, `MAC015`, …).
+
+The formatter is deliberately **whitespace-only**:
+
+- it re-indents each line from its brace/bracket depth;
+- it collapses runs of spaces between tokens down to one, and drops the space before
+  `,` `;` `)` `]`;
+- it trims trailing whitespace and collapses blank-line runs;
+- it **never joins two lines or splits one**, and never touches the inside of a string,
+  template literal, comment or `@ts{ … }` block.
+
+That restraint is not laziness — shya uses line breaks as statement separators, so a
+formatter that reflowed code would change what the program means. The test suite proves it:
+`test/formatter.test.mjs` formats every `.shya` file in the repository and requires the
+compiled JavaScript to be **byte-identical** (see [Repackaging](#repackaging)).
 
 ### Highlighted syntax
 
@@ -34,11 +59,11 @@ never highlighted as `~` + `/`.
 ### From the packaged `.vsix`
 
 ```sh
-code --install-extension shya-0.1.0.vsix
+code --install-extension shya-0.2.0.vsix
 ```
 
 Or in VS Code: **Extensions** view → `…` menu → **Install from VSIX…** → pick
-`shya-0.1.0.vsix`.
+`shya-0.2.0.vsix`.
 
 ### From source
 
@@ -67,6 +92,9 @@ tried, so a wrong setting is easy to spot.
 | `shya.compilerPath` | `shya` | Path to the compiler executable. Defaults to `shya` on `PATH`; on Windows you probably want `D:\\project\\shya\\build\\shya.exe`. |
 | `shya.buildArgs` | `["build"]` | Sub-command passed before the input file. Use `["check"]` to type-check without emitting. |
 | `shya.buildOutputExtension` | `.mjs` | Extension of the `-o` output file. |
+| `shya.indentSize` | `2` | Spaces per indentation level used by the formatter. |
+| `shya.formatOnPreview` | `true` | Format before opening the preview. Turn off to preview the buffer exactly as typed. |
+| `shya.previewLive` | `true` | Recompile the preview while you type. Turn off to refresh on save only. |
 
 Example `settings.json`:
 
@@ -75,6 +103,16 @@ Example `settings.json`:
   "shya.compilerPath": "D:\\project\\shya\\build\\shya.exe"
 }
 ```
+
+### Commands and keys
+
+| Command | Key |
+| --- | --- |
+| `shya: 格式化并预览` | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> (<kbd>Cmd</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd>) |
+| `shya: 格式化文档` | — (the standard Formatter action also works) |
+| `shya: Compile File` | — |
+
+All three are also in the editor context menu for `.shya` files.
 
 ## A short shya sample
 
@@ -112,21 +150,26 @@ Uses `npx --yes @vscode/vsce package` when available and otherwise falls back to
 built-in, dependency-free ZIP writer (Node's `zlib`), then verifies the archive by reading
 every entry back out.
 
-The script also runs two local checks before packaging:
+The script also runs local checks before packaging:
 
 - `grammar-smoke.mjs` — grammar shape (every pattern has `match`/`include`/`begin`, every
   `begin` has an `end`), `#include` resolution, regex compilation, ~60 token probes
   (math literals, `~/`, numbers, keywords, slots, `_`), and a stack-based dry run of the
   `@ts{ … }` region over the real files in `examples/` and `tests/cases/`;
-- `extension-smoke.mjs` — loads `out/extension.js` against a stubbed VS Code API and
-  checks activation, command registration, the exact `build <file> -o <file>.mjs` argument
-  vector, the missing-compiler path and the diagnostics panel.
+- `test/extension.test.mjs` — loads `out/extension.js` against a stubbed VS Code API:
+  activation, command and formatter registration, the exact `build <file> -o <file>.mjs`
+  argument vector, the formatter's edits, the preview panel's HTML, the diagnostics it
+  publishes, and the missing-compiler path;
+- `test/formatter.test.mjs` — the formatter's whitespace rules, idempotency, what must stay
+  verbatim, and a **round-trip over every real `.shya` file**: format it, compile both
+  versions, and require byte-identical JavaScript (or the same diagnostic codes).
 
-Both can also be run on their own:
+All three can also be run on their own:
 
 ```sh
 node grammar-smoke.mjs ../examples/card-game.shya
-node extension-smoke.mjs
+node test/extension.test.mjs
+node test/formatter.test.mjs
 ```
 
 ## License
