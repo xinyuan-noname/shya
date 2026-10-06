@@ -1,0 +1,65 @@
+import { @enumerate, @sum, @sorted } from "../lib/pystd.shya"
+
+define MAX_HP = 4
+
+// 宿主对象（这里用 @ts 假装是游戏引擎提供的）
+@ts{globalThis.hero = {
+  name: "赵云",
+  hp: 4,
+  hand: ["杀", "闪", "桃"],
+  judge: () => ({ suit: "red", rank: 7 }),
+};}
+@ts{globalThis.hostCount = (xs) => xs.length;}
+
+declare Card {
+  suit: string
+  rank: number
+}
+
+declare Hero {
+  name: string                  // 字段
+  hp: number
+  hand: array<string>
+  judge(): Card                 // 方法
+}
+
+declare fn hostCount(xs: array<string>): number
+
+// 宏：编译期展开，产物里看不到 @damage
+macro @damage(#who: ident, #n) {
+  #who hp = #who hp - #n
+}
+
+macro @report(#label, #value) {
+  console log(#label + "：", #value)
+}
+
+fn main() {
+  let h: Hero = @ts{globalThis.hero}
+
+  @report("英雄", h name)
+  @report("体力", h hp)
+
+  @damage(h, 2)
+  @report("受伤后体力", h hp)
+
+  let c: Card = h judge
+  @report("判定花色", c suit)
+
+  case h hp {
+    4: console log("满血")
+    2, 3: console log("轻伤")
+    default: console log("重伤")
+  }
+
+  let costs = [3, 1, 4]
+  for i v of @enumerate(costs) {
+    console log("第" + (i + 1) + "项 =", v)
+  }
+  @report("总和", costs @sum)
+  @report("排序", costs @sorted)
+  @report("手牌数", hostCount(h hand))
+  @report("上限", MAX_HP)
+}
+
+main()
