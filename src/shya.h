@@ -320,6 +320,7 @@ private:
     bool isWhenArmStart() const;
     bool isNamedSlotStart() const;
     bool isNamedSlotBlock() const;
+    bool looksLikeObjectLit(bool allowEmpty = true) const;
     void parseWhenArmBody(const NodePtr& arm);
 
     std::string parseTypeAnnotation();

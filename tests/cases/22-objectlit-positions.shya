@@ -1,0 +1,54 @@
+// 对象字面量的识别范围。
+//
+// 三处曾经识别不了或识别错：
+//   - 具名插槽的值 `#trigger: { player: "phaseBegin" }`（非空）被当成语句块；
+//   - 方法对象 `#o: { f() { return 1 } }` 同样被当成块；
+//   - 值位置上的 `{}` 变成了 undefined，而不是空对象。
+macro @skill(#id: Ident?, #trigger: ObjectLit?, #content: stmt) {
+  #id = {
+    trigger: #trigger,
+    content: #content,
+  }
+}
+
+macro @shape(#o: ObjectLit) {
+  console log(#o)
+}
+
+fn main() {
+  // 具名插槽里的非空对象字面量
+  @skill {
+    #id: skillA
+    #trigger: { player: "phaseBegin" }
+    #content: console log("A ran")
+  }
+
+  // 省略可选插槽 -> undefined
+  @skill {
+    #id: skillB
+    #content: console log("B ran")
+  }
+
+  // 值位置的 `{}` 是空对象，不是 undefined
+  @skill {
+    #id: skillC
+    #trigger: {}
+    #content: console log("C ran")
+  }
+
+  // 具名插槽里的方法对象
+  @shape {
+    #o: { f() { return 1 } }
+  }
+
+  // 嵌套
+  @shape {
+    #o: { a: { b: { c: 1 } } }
+  }
+
+  // 语句位置的对象字面量也要能识别
+  { statementPos: true }
+  console log("done")
+}
+
+main()

@@ -612,7 +612,18 @@ NodePtr Parser::parseStatement() {
         take();
         return mk(NK::Empty, t.pos);
     }
-    if (t.isPunct("{")) return parseBlock();
+    if (t.isPunct("{")) {
+        // A statement that begins with `{` is a block unless it is unmistakably a
+        // non-empty object literal. The code generator parenthesises such a statement,
+        // because JavaScript would otherwise read `{ x: 1 };` as a block with a label.
+        if (looksLikeObjectLit(false)) {
+            auto st = mk(NK::ExprStmt, t.pos);
+            st->a = parseObjectLit();
+            acceptPunct(";");
+            return st;
+        }
+        return parseBlock();
+    }
     if (t.kind == Tok::Under && peek().kind != Tok::At) {
         take();
         acceptPunct(";");
@@ -1571,6 +1582,42 @@ bool Parser::isNamedSlotBlock() const {
            peek(3).isPunct(":");
 }
 
+// At a statement position `{` opens a block, yet `{ name: … }`, `{}` and
+// `{ m() { … } }` are object literals. Both start with the same token, so decide by
+// looking past the brace. This is not cosmetic: the two spellings produce different
+// JavaScript, and a named slot whose value is `{ player: "phaseBegin" }` has to reach the
+// macro as an object literal rather than as a block containing `player` and a stray colon.
+bool Parser::looksLikeObjectLit(bool allowEmpty) const {
+    if (!checkPunct("{")) return false;
+    // `{}` is an empty object literal in a value position, but at a statement position it
+    // stays a block: `@macro { }` is an invocation with every slot omitted, and treating
+    // that brace as a literal would emit a stray `({});` statement.
+    if (peek().isPunct("}")) return allowEmpty;
+    if (peek().kind == Tok::String && peek(2).isPunct(":")) return true;
+    std::size_t k = 1;
+    const bool asyncModifier = (peek().kind == Tok::Identifier || peek().kind == Tok::Keyword) &&
+                               peek().text == "async" &&
+                               (peek(2).kind == Tok::Identifier || peek(2).kind == Tok::Keyword);
+    if (asyncModifier) k = 2;  // `{ async name(…`
+    const Token& name = peek(k);
+    if (name.kind != Tok::Identifier && name.kind != Tok::Keyword) return false;
+    if (peek(k + 1).isPunct(":")) return true;  // { name: … }
+    if (!peek(k + 1).isPunct("(")) return false;
+    // `{ name(params) { body } }` — a method definition. The body is what distinguishes it
+    // from a plain call statement such as `{ f() }`, so scan to the matching parenthesis.
+    // The scan index is relative to `i_`, exactly like `peek`.
+    std::size_t j = k + 2;
+    int depth = 1;
+    while (i_ + j < t_.size() && depth > 0) {
+        const Token& tk = t_[i_ + j];
+        if (tk.kind == Tok::End) return false;
+        if (tk.isPunct("(")) depth += 1;
+        else if (tk.isPunct(")")) depth -= 1;
+        ++j;
+    }
+    return depth == 0 && i_ + j < t_.size() && t_[i_ + j].isPunct("{");
+}
+
 void Parser::parseWhenArmBody(const NodePtr& arm) {
     while (!atEnd() && !isWhenArmStart()) {
         if (cur().isPunct(";") || cur().isPunct(",")) {
@@ -1634,17 +1681,27 @@ NodePtr Parser::parseMacroApply(const Token& atToken, bool prefix) {
             else errorHere("SYN020", "命名插槽缺少名字");
             expectPunct(":", "命名插槽");
             auto b = mk(NK::Block, cur().pos);
-            while (!atEnd() && !checkPunct("}") && !isNamedSlotStart()) {
-                if (cur().isPunct(",") || cur().isPunct(";")) {
-                    take();
-                    continue;
-                }
-                std::size_t before = i_;
-                NodePtr st = parseStatement();
-                if (st) b->list.push_back(st);
-                if (i_ == before) {
-                    errorHere("SYN002", "命名插槽内无法解析的内容，已跳过 `" + cur().text + "`");
-                    take();
+            if (looksLikeObjectLit()) {
+                // The slot value is an object literal, not a block of statements:
+                // `#trigger: { player: "phaseBegin" }`. It is wrapped in an ExprStmt so
+                // that the same one-expression unwrapping applies as for any other
+                // expression used as a slot value.
+                auto st = mk(NK::ExprStmt, cur().pos);
+                st->a = parseObjectLit();
+                b->list.push_back(st);
+            } else {
+                while (!atEnd() && !checkPunct("}") && !isNamedSlotStart()) {
+                    if (cur().isPunct(",") || cur().isPunct(";")) {
+                        take();
+                        continue;
+                    }
+                    std::size_t before = i_;
+                    NodePtr st = parseStatement();
+                    if (st) b->list.push_back(st);
+                    if (i_ == before) {
+                        errorHere("SYN002", "命名插槽内无法解析的内容，已跳过 `" + cur().text + "`");
+                        take();
+                    }
                 }
             }
             arg->a = b;

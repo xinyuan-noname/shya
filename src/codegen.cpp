@@ -812,6 +812,9 @@ void Codegen::genStatement(const NodePtr& n) {
             }
             std::string e = genExpr(n->a, 0);
             if (e.empty()) return;
+            // A statement that is an object literal needs parentheses: `{ x: 1 };` would be
+            // read by JavaScript as a block containing a label, not as an expression.
+            if (n->a->kind == NK::ObjectLit) e = "(" + e + ")";
             // A `@ts{ … }` payload is verbatim JavaScript: when it already ends with a
             // semicolon, adding another one would produce `;;`.
             if (n->a->kind == NK::TsRaw) {

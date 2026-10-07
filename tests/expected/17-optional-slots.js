@@ -3,7 +3,7 @@
 
 console.log("filter ran");
 
-const stdqingjiao = { translation: "", trigger: undefined };
+const stdqingjiao = { translation: "", trigger: {} };
 
 console.log("with id");
 
