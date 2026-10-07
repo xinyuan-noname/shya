@@ -1220,6 +1220,15 @@ NodePtr Parser::parseObjectLit() {
     expectPunct("{", "对象字面量");
     while (!atEnd() && !checkPunct("}")) {
         auto prop = mk(NK::Prop, cur().pos);
+        // `async name(params) { … }` — the async modifier on a method definition.
+        // `{ async: 1 }` is still a key/value pair whose key happens to be `async`,
+        // because the token after it is a colon rather than a member name.
+        bool isAsync = false;
+        if (cur().kind == Tok::Keyword && cur().text == "async" &&
+            (peek().kind == Tok::Identifier || peek().kind == Tok::Keyword)) {
+            isAsync = true;
+            take();
+        }
         if (cur().kind == Tok::Identifier || cur().kind == Tok::Keyword) {
             prop->text = take().text;
         } else if (cur().kind == Tok::String) {
@@ -1239,6 +1248,7 @@ NodePtr Parser::parseObjectLit() {
             // key/value pair: the value is the method itself.
             auto fn = mk(NK::FnDecl, prop->pos);
             fn->text = prop->text;
+            fn->flag = isAsync;
             expectPunct("(", "方法参数");
             while (!atEnd() && !checkPunct(")")) {
                 bool rest = acceptPunct("...");

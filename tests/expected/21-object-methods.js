@@ -17,12 +17,21 @@ function main() {
     describe() {
       return "判定颜色";
     },
+    async resolve(event, player) {
+      await Promise.resolve();
+      trace(player.name + " 异步结算");
+    },
   };
   console.log(skill.id, skill.translation);
   console.log(skill.filter({ kind: "judge" }, { name: "甲" }));
   console.log(skill.filter({ kind: "draw" }, { name: "甲" }));
   skill.content({ kind: "judge" }, { name: "乙" });
   console.log(skill.describe());
+  runAsync(skill);
+}
+
+async function runAsync(skill) {
+  await skill.resolve({ kind: "judge" }, { name: "丙" });
 }
 
 main();

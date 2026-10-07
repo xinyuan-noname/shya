@@ -34,6 +34,12 @@ fn main() {
     describe() {
       return "判定颜色"
     },
+
+    // 异步方法
+    async resolve(event: Event, player: Player): void {
+      await @ts{Promise.resolve()}
+      trace(player name + " 异步结算")
+    },
   }
 
   // 成员访问照旧：带括号是调用，不带括号读属性
@@ -42,6 +48,12 @@ fn main() {
   console log(skill filter({ kind: "draw" }, { name: "甲" }))
   skill content({ kind: "judge" }, { name: "乙" })
   console log(skill describe())
+
+  runAsync(skill)
+}
+
+async fn runAsync(skill: object): void {
+  await skill resolve({ kind: "judge" }, { name: "丙" })
 }
 
 main()

@@ -46,7 +46,8 @@ node tests/run.mjs               # 跑测试；--update 重新生成基准
    `x y` 才编译成 `x.y()`；**类型未知时按属性读取**。
 4. **对字段写括号会被拦**（`p hp()` 报 `TC015`）；方法省略括号但缺实参报 `TC006`。
 5. **对象字面量有两类成员**：键值对 `{ a: 1 }`、`{ "带空格": 1 }`，以及
-   **方法定义** `{ filter(event, player) { … } }`。属性简写 `{ a }` 报 `SYN030`、
+   **方法定义** `{ filter(event, player) { … } }`，方法可加 `async`
+   （`async resolve(event) { await … }`）。属性简写 `{ a }` 报 `SYN030`、
    `{ ...x }` / `{ [k]: 1 }` 报 `SYN013`。带方法的对象会一个成员一行输出。
    语句位置的 `{` 一律是块，所以对象字面量只在表达式位置成立。
 6. **没有函数类型、没有回调**：参数写 `fn` 报 `SYN032`。`@ts{}` 里的宿主函数不受限。
@@ -92,8 +93,13 @@ p judge()                    // p.judge()
 xs length                    // xs.length（类型未知 -> 属性）
 xs push(4)                   // xs.push(4)
 
-// 对象字面量：只有键值对（标识符键 / 字符串键 / 嵌套）
+// 对象字面量：键值对 + 方法定义（方法可加 async）
 let cfg = { speed: 3, "max hp": 10, nested: { deep: [1, 2] } }
+let skill = {
+  id: "judge",
+  filter(event, player) { return true },      // 方法：f(event, player) { … }
+  async resolve(event, player) { await p },   // 异步方法
+}
 
 // 函数
 fn describe(name: string, times: number = 1, ...more: number[]): string {

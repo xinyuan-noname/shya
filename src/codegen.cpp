@@ -437,7 +437,8 @@ Codegen::Rendered Codegen::genExprP(const NodePtr& n) {
             std::string k = simpleKey ? key : escapeJsString(key);
             if (n->a && n->a->kind == NK::FnDecl) {
                 const NodePtr& fn = n->a;
-                std::string s = k + "(" + genParams(fn) + ") " + genBlockOf(fn->list);
+                std::string s = (fn->flag ? "async " : "") + k + "(" + genParams(fn) + ") " +
+                                genBlockOf(fn->list);
                 r.text = s;
                 return r;
             }

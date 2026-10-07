@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (command == "version" || command == "--version" || command == "-v") {
-        std::puts("shya 1.2.0 (ES2026 backend)");
+        std::puts("shya 1.2.1 (ES2026 backend)");
         return 0;
     }
 

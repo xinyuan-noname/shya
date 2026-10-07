@@ -288,6 +288,12 @@ let skill = {
   content(event: Event, player: Player): void {   // 参数/返回可以写标注，产物里剥掉
     trace(player name)
   },
+
+  // 异步方法
+  async resolve(event, player) {
+    await @ts{Promise.resolve()}
+    trace(player name)
+  },
 }
 ```
 
@@ -301,8 +307,15 @@ let skill = {
   content(event, player) {
     trace(player.name);
   },
+  async resolve(event, player) {
+    await Promise.resolve();
+    trace(player.name);
+  },
 };
 ```
+
+`async` 只作为**方法定义的修饰符**出现，写在方法名前面。`{ async: 1 }` 仍然是一个
+键为 `async` 的键值对；但 `async` 是关键字，所以不能用 `obj async` 去读这个名字。
 
 以下形式会报错：
 
