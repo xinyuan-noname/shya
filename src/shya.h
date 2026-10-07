@@ -175,6 +175,7 @@ enum class NK {
     ForWhile, ForOf, ForEach, ForRange, FnDecl, Return, Throw, Try,
     Break, Continue, Import, Export, MacroDecl,
     When, WhenArm, Each,
+    SlotScope,   // '<slot> ... </slot>': a scope that vanishes when the slot is omitted
 };
 
 struct Node;
@@ -276,6 +277,11 @@ private:
     bool expectKeyword(const char* k, const char* ctx);
     void errorHere(const std::string& code, const std::string& msg);
     std::string parseParamAnnotation();
+    // `<slot> … </slot>` — a scope that disappears when the slot was not supplied.
+    NodePtr parseSlotScope(bool memberPosition);
+    bool atScopeClose(const std::string& name) const;
+    // One `key: value` / `key(params) { … }` member of an object literal.
+    NodePtr parseObjectMember();
 
     // statements
     NodePtr parseStatement();

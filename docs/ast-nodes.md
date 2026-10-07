@@ -72,6 +72,7 @@
 | `NK::When` | `When` | 模板内部 | `@when(条件)`，`a` 是条件表达式，`list` 是 `WhenArm` | `@when(#x is array)` |
 | `NK::WhenArm` | `WhenArm` | 模板内部 | 一个 `@when` 分支。`text` 是 `y` / `n`（具名分支），`list` 是分支体 | `y: #slot` |
 | `NK::Each` | `Each` | 模板内部 | `@each(#项 of #列表) { ... }`，`text` 是项名，`names[0]` 是列表名 | `@each(#s of #slots) { }` |
+| `NK::SlotScope` | `SlotScope` | 模板内部 | `<插槽> … </插槽>`：调用点没写该插槽时整块消失。`text` 是插槽名，`list` 是内容（语句或对象成员），展开期被消费 | `<translation>x: 1</translation>` |
 
 ---
 

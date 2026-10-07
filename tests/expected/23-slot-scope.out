@@ -1,0 +1,3 @@
+ab { fromA: 'A', fromB: 'B', tail: 1 }
+a { fromA: 'A', tail: 1 }
+b { tail: 1 }

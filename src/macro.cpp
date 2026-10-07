@@ -44,7 +44,7 @@ SlotType slotTypeFromName(const std::string& s) {
 // diagnostics spell them (`Ident`, `Str`, `ObjectLit`, `If` …), and matching is
 // CASE SENSITIVE: `ident` / `strLit` are *not* the type `Ident` / `Str`. The
 // template-only nodes (`Program`, `Empty`, `MacroDecl`, `When`, `WhenArm`,
-// `Each`, `SlotList`, `Optionalize`, `TypeRef`) are deliberately NOT
+// `Each`, `SlotList`, `Optionalize`, `TypeRef`, `SlotScope`) are deliberately NOT
 // addressable: substituting one of them into a template would rewrite the
 // template itself.
 
@@ -189,6 +189,16 @@ bool isNilNode(const NodePtr& n) {
 }
 
 NodePtr makeNil(const Pos& p) { return mk(NK::Empty, p); }
+
+// `<slot> … </slot>` is in effect exactly when the call site supplied that slot. An
+// explicitly supplied empty string counts as supplied: the question is whether the author
+// wrote the slot, not what its value turned out to be.
+bool slotScopeActive(const std::string& name, const Bindings* binds) {
+    if (!binds) return false;
+    auto it = binds->find(name);
+    if (it == binds->end()) return false;
+    return !it->second.nil;
+}
 
 // `undefined` is the language's only "no value": it is what an omitted slot
 // becomes once it has to stand in an expression (`"a" + #optional` must not
@@ -435,6 +445,39 @@ void MacroExpander::registerMacroFromDecl(const NodePtr& n) {
         def.optional.push_back(opt);
     }
     def.body = n->list;
+
+    // A `<slot>` scope names a parameter, so an unknown name is a typo that would
+    // otherwise silently expand to nothing. Checked here rather than at expansion time so
+    // it is reported even when the macro is never called.
+    std::function<void(const NodePtr&)> checkScopes = [&](const NodePtr& node) {
+        if (!node) return;
+        if (node->kind == NK::SlotScope && !node->text.empty()) {
+            bool known = false;
+            for (const auto& p : def.params)
+                if (p == node->text) known = true;
+            if (!known) {
+                bag_.error(node->pos, "SYN033",
+                           "`<" + node->text + ">` 不是宏 `" + def.name +
+                               "` 的参数（可用：" +
+                               (def.params.empty() ? std::string("无")
+                                                   : [&] {
+                                                         std::string s;
+                                                         for (const auto& p : def.params) {
+                                                             if (!s.empty()) s += "、";
+                                                             s += "#" + p;
+                                                         }
+                                                         return s;
+                                                     }()) +
+                               "）");
+            }
+        }
+        for (const auto& k : {node->a, node->b, node->c, node->d}) checkScopes(k);
+        for (const auto& c : node->list) checkScopes(c);
+        for (const auto& c : node->targets) checkScopes(c);
+        for (const auto& c : node->values) checkScopes(c);
+    };
+    for (const auto& st : def.body) checkScopes(st);
+
     registerMacro(def);
 }
 
@@ -823,6 +866,10 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx);
 
 void instStmts(const std::vector<NodePtr>& tpl, const InstCtx& ctx, std::vector<NodePtr>& out);
 
+// Appends the members one object-literal element contributes: nothing for an inactive
+// `<slot>` scope, its children otherwise. Recursive, so a nested scope resolves too.
+void addObjectMembers(const NodePtr& x, const InstCtx& ctx, std::vector<NodePtr>& out);
+
 // True when a template node substitutes to nothing. A slot with a nil binding
 // (an omitted `#name: Type?` slot or a `_` argument) and `_` itself are empty;
 // so is a named-slot block whose body is empty, which is how `#id:` with
@@ -1087,7 +1134,21 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx) {
         }
         case NK::ObjectLit: {
             auto n = mk(NK::ObjectLit, tpl->pos);
-            for (const auto& x : tpl->list) n->list.push_back(instExpr(x, ctx));
+            for (const auto& x : tpl->list) {
+                // A `<slot> … </slot>` member contributes zero or more members. This is the
+                // case the construct exists for: a member cannot otherwise be made
+                // conditional, and an omitted optional slot would leave `key: undefined`.
+                addObjectMembers(x, ctx, n->list);
+            }
+            return n;
+        }
+        case NK::SlotScope: {
+            // A scope in expression position (not a member of an object literal) resolves
+            // to either nothing or its single child.
+            if (!slotScopeActive(tpl->text, ctx.binds)) return mk(NK::Empty, tpl->pos);
+            if (tpl->list.size() == 1) return instExpr(tpl->list[0], ctx);
+            auto n = mk(NK::Block, tpl->pos);
+            instStmts(tpl->list, ctx, n->list);
             return n;
         }
         case NK::Prop: {
@@ -1143,6 +1204,16 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx) {
     }
 }
 
+void addObjectMembers(const NodePtr& x, const InstCtx& ctx, std::vector<NodePtr>& out) {
+    if (!x) return;
+    if (x->kind == NK::SlotScope) {
+        if (!slotScopeActive(x->text, ctx.binds)) return;
+        for (const auto& inner : x->list) addObjectMembers(inner, ctx, out);
+        return;
+    }
+    out.push_back(instExpr(x, ctx));
+}
+
 void instStmts(const std::vector<NodePtr>& tpl, const InstCtx& ctx, std::vector<NodePtr>& out) {
     for (const auto& st : tpl) {
         if (!st) continue;
@@ -1153,6 +1224,11 @@ void instStmts(const std::vector<NodePtr>& tpl, const InstCtx& ctx, std::vector<
             }
             case NK::Each:
                 instEachStmts(st, ctx, out);
+                break;
+            case NK::SlotScope:
+                // The whole scope is in or out together; there is nothing to emit when the
+                // slot was not supplied.
+                if (slotScopeActive(st->text, ctx.binds)) instStmts(st->list, ctx, out);
                 break;
             case NK::MacroDecl:
                 break;  // macros are collected separately

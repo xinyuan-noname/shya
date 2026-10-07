@@ -174,6 +174,8 @@ console log(2)     // 两条语句，不是 console.log(1).log(2)
 1. **成员访问不跨行**。`a\n b` 是两条语句，不是 `a.b()`。
 2. **宏的后置插槽参数不跨行**。`x @safe a(1)\n b(2)` 中第二行是新语句。
 3. **`@each` / `@when` 拼接线不跨行**。宏模板里 `#x @each(...)` 必须在同一行；下一行开头的 `@when` 是新语句。
+4. **关系运算符不跨行**。`a\n < b` 是两条语句；下一行开头的 `<` 也因此可以安全地开始一个
+   [`<插槽>` 作用域](#67-插槽作用域slot--slot)。`<` `>` `<=` `>=` 都算。
 
 `;` 同时是**空语句**（`case` 分支里常用：`1,2:;`）。
 
@@ -910,6 +912,61 @@ player nextSeat @safe_share _q recover(2) draw(2)
 
 完整可运行版本见 `tests/cases/02-macros.shya`。
 
+### 6.7 插槽作用域 `<slot> … </slot>`
+
+标记一段**只在插槽被传值时才存在**的作用域。判定依据是**调用点有没有写这个插槽**：
+
+| 调用点 | 结果 |
+| --- | --- |
+| 写了 `#translation: "翻译"` | 作用域内容保留 |
+| 写了 `#translation: ""`（空字符串） | **保留** —— 看的是"写没写"，不是"值空不空" |
+| 没写 | 整个作用域连同内容一起消失 |
+
+标签名是**插槽名，不带 `#`**；不是这个宏的参数会报 `SYN033`。同名多处**一起生效**
+（同一次展开里"写没写"是调用点的属性）。
+
+```shya
+macro @skill(#id: Ident?, #translation: Str?, #description: Str?) {
+  #id = {
+    <translation>translationInline:true</translation>
+    <translation>translation:#translation</translation>
+    <description>
+      description:#description,
+    </description>
+    keep: 1
+  }
+}
+```
+
+```shya
+@skill { #id: s1  #translation: "翻译"  #description: "描述" }
+// -> const s1 = { translationInline: true, translation: "翻译", description: "描述", keep: 1 };
+
+@skill { #id: s2  #translation: "" }
+// -> const s2 = { translationInline: true, translation: "", keep: 1 };   description 整个成员没了
+
+@skill { #id: s3 }
+// -> const s3 = { keep: 1 };
+```
+
+**允许出现的位置**：**对象字面量的成员位置**与**语句位置**。可以嵌套，外层不生效时内层一并消失。
+内容可以和标签同行（`<a>x: 1</a>`），也可以换行。标签本身**不产出任何东西**。
+
+**为什么需要它**：对象成员无法用别的手段条件化。`@when` 写在成员位置是 `SYN013`，
+而省略一个可选插槽会在产物里留下 `key: undefined`：
+
+```shya
+macro @m(#a: Str?) { o = { x: 1, a: #a } }
+@m {}
+// -> const o = { x: 1, a: undefined };   成员删不掉
+```
+
+**和比较运算符怎么区分**：`<` 只在**语句 / 成员的开头**才是标签 —— `<` 本来就不能开始一个
+表达式，所以 `a < b` 不受影响；`</` 永远不是运算符，所以 `key: value</a>` 也能正确断开。
+标签内部允许空格：`<translation>` 与 `< translation >` 等价。
+
+诊断：`SYN033` 标签名不是该宏的参数；`SYN034` 缺对应的闭合标签；`SYN035` 出现在宏定义体之外。
+
 ---
 
 ## 7. 标准库宏
@@ -1067,7 +1124,7 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 | 前缀 | 阶段 | 例 |
 | --- | --- | --- |
 | `LEX` | 词法分析 | `LEX002` 无法识别的字符；`LEX006` 数学字面量缺少参数；`LEX009` 写了 `null`/`undefined` |
-| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN013` 对象字面量的键非法（展开 / 计算键）；`SYN023`+ `declare` 相关；`SYN030` 属性简写；`SYN032` 参数类型写了 `fn` |
+| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN013` 对象字面量的键非法（展开 / 计算键）；`SYN023`+ `declare` 相关；`SYN030` 属性简写；`SYN032` 参数类型写了 `fn`；`SYN033` `<插槽>` 不是该宏的参数；`SYN034` 缺闭合标签；`SYN035` `<插槽>` 出现在宏外 |
 | `MOD` | 宏文件导入 | `MOD001` 找不到宏文件；`MOD002` 循环导入；`MOD003` 宏文件本身有错；`MOD004` 宏文件里导入了非 `.shya`；`MOD005` 该文件没有这个宏 |
 | `MAC` | 宏展开/脱糖 | `MAC014` 未定义的宏；`MAC015` 插槽类型不符；`MAC016` 缺少参数；`MAC020` `@when` 无分支匹配 |
 | `TC` | 类型检查 | `TC003` 类型不符；`TC006` 参数个数不符；`TC010` 未声明的标识符（警告）；`TC013` const 重赋值；`TC014` 宿主类型没有该成员（警告）；`TC015` 把字段当方法调用 |

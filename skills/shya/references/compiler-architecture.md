@@ -379,8 +379,8 @@ std::vector<std::vector<NK>> paramKinds;  // 这个槽精确接受的 NK 种类�
 | `exprStmt` | `ExprStmt` |
 
 表里共 42 项，每项只映射一个 `NK`（`astKindTable()` 用 `std::vector<NK>` 是为了以后能收
-多个）。**宏模板内部节点故意不可寻址**，共九个名字：`program`、`empty`、`macroDecl`、
-`when`、`whenArm`、`each`、`slotList`、`optionalize`、`typeRef` ——把一个模板节点替换进
+多个）。**宏模板内部节点故意不可寻址**，共十个名字：`program`、`empty`、`macroDecl`、
+`when`、`whenArm`、`each`、`slotList`、`optionalize`、`typeRef`、`slotScope` ——把一个模板节点替换进
 模板就是在改写模板自身，`astKindTable()` 上方的注释写明了这条理由。
 
 表里 `rangeExpr` 一项是**不可达的**：`slotTypeFromName("rangeExpr")` 先返回

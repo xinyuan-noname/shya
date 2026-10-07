@@ -1,0 +1,70 @@
+// `<slot> … </slot>`：插槽在**调用点没传值**时，整个作用域连同内容一起消失。
+//
+// 这个语法是为「无名杀技能对象」这类宿主对象准备的：一段内容要不要出现取决于
+// 宏插槽是否存在，而对象成员本身没法条件化（`@when` 写在成员位置是 `SYN013`）。
+// 内容可以和标签同行，也可以换行；同名多处一起生效。
+
+macro @skill(#id: Ident?, #translation: Str?, #description: Str?, #body: stmt?) {
+  #id = {
+    <translation>translationInline:true</translation>
+    <translation>translation:#translation</translation>
+    <description>
+      description:#description,
+    </description>
+    keep: 1
+  }
+
+  <body>
+    #body
+  </body>
+}
+
+fn main() {
+  // 都传：两个 <translation> 一起生效，description、body 也在
+  @skill {
+    #id: s1
+    #translation: "翻译"
+    #description: "描述"
+    #body: console log("s1 body")
+  }
+
+  // 只传 translation：description 与 body 整块消失
+  @skill {
+    #id: s2
+    #translation: ""
+  }
+
+  // 都不传：三个作用域全消失，只剩 keep
+  @skill {
+    #id: s3
+  }
+
+  console log(s1, s2, s3)
+}
+
+// 嵌套作用域：外层不生效时，内层也一并消失
+macro @outer(#a: Str?, #b: Str?) {
+  o = {
+    <a>
+      fromA: #a
+      <b>fromB: #b</b>
+    </a>
+    tail: 1
+  }
+}
+
+@outer {
+  #a: "A"
+  #b: "B"
+}
+console log("ab", o)
+
+@outer {
+  #a: "A"
+}
+console log("a", o)
+
+@outer {
+  #b: "B"
+}
+console log("b", o)

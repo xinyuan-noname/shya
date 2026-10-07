@@ -61,6 +61,7 @@ const char* nodeKindName(NK k) {
         case NK::When: return "When";
         case NK::WhenArm: return "WhenArm";
         case NK::Each: return "Each";
+        case NK::SlotScope: return "SlotScope";
     }
     return "?";
 }
@@ -624,6 +625,9 @@ NodePtr Parser::parseStatement() {
         }
         return parseBlock();
     }
+    // `<slot> … </slot>`. `<` cannot begin an expression, so at a statement position it
+    // is unambiguously a scope marker; `a < b` is untouched because it starts with `a`.
+    if (t.isPunct("<")) return parseSlotScope(false);
     if (t.kind == Tok::Under && peek().kind != Tok::At) {
         take();
         acceptPunct(";");
@@ -964,8 +968,17 @@ NodePtr Parser::parseTypeNameRHS() {
 }
 
 NodePtr Parser::parseRelational() {    NodePtr l = parseAdditive();
+    // `</` closes a `<slot>` scope. It is not an operator in any expression, so it must
+    // never be read as `<` followed by a division: `key: value</slot>` has to end the
+    // value at the `<`.
+    auto startsScopeClose = [&]() { return checkPunct("<") && peek().isPunct("/"); };
     for (;;) {
         std::string op;
+        if (startsScopeClose()) break;
+        // A relational operator never continues across a line break, exactly like member
+        // access and postfix macros. Without this, `keep: 1` on one line followed by
+        // `<translation>…</translation>` on the next reads as `1 < translation`.
+        if (cur().newlineBefore) break;
         if (checkPunct("<")) op = "<";
         else if (checkPunct("<=")) op = "<=";
         else if (checkPunct(">")) op = ">";
@@ -977,6 +990,8 @@ NodePtr Parser::parseRelational() {    NodePtr l = parseAdditive();
         std::vector<std::string> names{op};
         for (;;) {
             std::string op2;
+            if (startsScopeClose()) break;
+            if (cur().newlineBefore) break;
             if (checkPunct("<")) op2 = "<";
             else if (checkPunct("<=")) op2 = "<=";
             else if (checkPunct(">")) op2 = ">";
@@ -1230,65 +1245,158 @@ NodePtr Parser::parseObjectLit() {
     auto n = mk(NK::ObjectLit, cur().pos);
     expectPunct("{", "对象字面量");
     while (!atEnd() && !checkPunct("}")) {
-        auto prop = mk(NK::Prop, cur().pos);
-        // `async name(params) { … }` — the async modifier on a method definition.
-        // `{ async: 1 }` is still a key/value pair whose key happens to be `async`,
-        // because the token after it is a colon rather than a member name.
-        bool isAsync = false;
-        if (cur().kind == Tok::Keyword && cur().text == "async" &&
-            (peek().kind == Tok::Identifier || peek().kind == Tok::Keyword)) {
-            isAsync = true;
+        if (cur().isPunct(",") || cur().isPunct(";")) {
             take();
+            continue;
         }
-        if (cur().kind == Tok::Identifier || cur().kind == Tok::Keyword) {
-            prop->text = take().text;
-        } else if (cur().kind == Tok::String) {
-            prop->text = take().value;
-        } else {
-            errorHere("SYN013", "对象字面量的键必须是标识符或字符串");
-            break;
+        // `<slot> … </slot>` inside an object literal contributes members conditionally.
+        if (cur().isPunct("<")) {
+            n->list.push_back(parseSlotScope(true));
+            acceptPunct(",");
+            continue;
         }
-        if (acceptPunct(":")) {
-            prop->a = parseTernary();
-        } else if (checkPunct("(")) {
-            // Method definition: `key(params) { body }`.
-            //
-            // This is how a host object that carries behaviour is written - a noname
-            // skill object is exactly `{ trigger: {…}, filter(event, player) {…}, … }` -
-            // so it is part of the object literal grammar. It is still a *member*, not a
-            // key/value pair: the value is the method itself.
-            auto fn = mk(NK::FnDecl, prop->pos);
-            fn->text = prop->text;
-            fn->flag = isAsync;
-            expectPunct("(", "方法参数");
-            while (!atEnd() && !checkPunct(")")) {
-                bool rest = acceptPunct("...");
-                std::string pname = check(Tok::Identifier) ? take().text : std::string();
-                std::string ann;
-                if (acceptPunct(":")) ann = parseTypeAnnotation();
-                fn->names.push_back(pname);
-                fn->typeAnns.push_back(rest ? "..." + ann : ann);
-                fn->defaults.push_back(nullptr);
-                if (!acceptPunct(",")) break;
-            }
-            expectPunct(")", "方法参数");
-            if (acceptPunct(":")) fn->typeAnn2 = parseTypeAnnotation();
-            if (checkPunct("{")) fn->list = parseBlock()->list;
-            prop->a = fn;
-        } else {
-            // Shorthand `{ a }` is not part of the language either: the key and the
-            // value are always both written.
-            bag_.error(prop->pos, "SYN030",
-                       "对象字面量只允许键值对，不支持简写；请写成 `" + prop->text + ": " +
-                           prop->text + "`");
-            auto id = mk(NK::Ident, prop->pos);
-            id->text = prop->text;
-            prop->a = id;
-        }
+        NodePtr prop = parseObjectMember();
+        if (!prop) break;
         n->list.push_back(prop);
-        if (!acceptPunct(",")) break;
+        // The separator is optional: a member followed directly by `</scope>` is as
+        // natural as one followed by a comma.
+        acceptPunct(",");
     }
     expectPunct("}", "对象字面量");
+    return n;
+}
+
+// One `key: value` or `key(params) { body }` member. Returns null after reporting, so the
+// caller can stop instead of looping on an unparsable token.
+NodePtr Parser::parseObjectMember() {
+    auto prop = mk(NK::Prop, cur().pos);
+    // `async name(params) { … }` — the async modifier on a method definition.
+    // `{ async: 1 }` is still a key/value pair whose key happens to be `async`,
+    // because the token after it is a colon rather than a member name.
+    bool isAsync = false;
+    if (cur().kind == Tok::Keyword && cur().text == "async" &&
+        (peek().kind == Tok::Identifier || peek().kind == Tok::Keyword)) {
+        isAsync = true;
+        take();
+    }
+    if (cur().kind == Tok::Identifier || cur().kind == Tok::Keyword) {
+        prop->text = take().text;
+    } else if (cur().kind == Tok::String) {
+        prop->text = take().value;
+    } else {
+        errorHere("SYN013", "对象字面量的键必须是标识符或字符串");
+        return nullptr;
+    }
+    if (acceptPunct(":")) {
+        prop->a = parseTernary();
+    } else if (checkPunct("(")) {
+        // Method definition: `key(params) { body }`.
+        //
+        // This is how a host object that carries behaviour is written - a noname
+        // skill object is exactly `{ trigger: {…}, filter(event, player) {…}, … }` -
+        // so it is part of the object literal grammar. It is still a *member*, not a
+        // key/value pair: the value is the method itself.
+        auto fn = mk(NK::FnDecl, prop->pos);
+        fn->text = prop->text;
+        fn->flag = isAsync;
+        expectPunct("(", "方法参数");
+        while (!atEnd() && !checkPunct(")")) {
+            bool rest = acceptPunct("...");
+            std::string pname = check(Tok::Identifier) ? take().text : std::string();
+            std::string ann;
+            if (acceptPunct(":")) ann = parseParamAnnotation();
+            fn->names.push_back(pname);
+            fn->typeAnns.push_back(rest ? "..." + ann : ann);
+            fn->defaults.push_back(nullptr);
+            if (!acceptPunct(",")) break;
+        }
+        expectPunct(")", "方法参数");
+        if (acceptPunct(":")) fn->typeAnn2 = parseTypeAnnotation();
+        if (checkPunct("{")) fn->list = parseBlock()->list;
+        prop->a = fn;
+    } else {
+        // Shorthand `{ a }` is not part of the language: the key and the value are
+        // always both written.
+        bag_.error(prop->pos, "SYN030",
+                   "对象字面量只允许键值对，不支持简写；请写成 `" + prop->text + ": " +
+                       prop->text + "`");
+        auto id = mk(NK::Ident, prop->pos);
+        id->text = prop->text;
+        prop->a = id;
+    }
+    return prop;
+}
+
+// `</name>`, i.e. `<` `/` name `>`.
+bool Parser::atScopeClose(const std::string& name) const {
+    if (!checkPunct("<") || !peek().isPunct("/")) return false;
+    const Token& tk = peek(2);
+    if (tk.kind != Tok::Identifier && tk.kind != Tok::Keyword) return false;
+    if (!name.empty() && tk.text != name) return false;
+    return peek(3).isPunct(">");
+}
+
+// `<slot> … </slot>`: a scope that disappears entirely when the slot was not supplied at
+// the call site. It may hold statements or, inside an object literal, members - which is
+// the case it exists for, since a member cannot otherwise be made conditional.
+NodePtr Parser::parseSlotScope(bool memberPosition) {
+    const Pos p = cur().pos;
+    if (macroDepth_ == 0) {
+        bag_.error(p, "SYN035", "`<插槽> … </插槽>` 只能出现在宏定义体内");
+    }
+    auto n = mk(NK::SlotScope, p);
+    expectPunct("<", "插槽作用域");
+    if (cur().kind == Tok::Identifier || cur().kind == Tok::Keyword) {
+        n->text = take().text;
+    } else {
+        errorHere("SYN033", "`<` 后面需要插槽名（不带 `#`）");
+        while (!atEnd() && !checkPunct(">")) take();
+        acceptPunct(">");
+        return n;
+    }
+    expectPunct(">", "插槽作用域");
+
+    if (memberPosition) {
+        while (!atEnd() && !atScopeClose(n->text) && !checkPunct("}")) {
+            if (cur().isPunct(",") || cur().isPunct(";")) {
+                take();
+                continue;
+            }
+            if (cur().isPunct("<")) {
+                n->list.push_back(parseSlotScope(true));
+                acceptPunct(",");
+                continue;
+            }
+            NodePtr prop = parseObjectMember();
+            if (!prop) break;
+            n->list.push_back(prop);
+            acceptPunct(",");
+        }
+    } else {
+        while (!atEnd() && !atScopeClose(n->text)) {
+            if (cur().isPunct(";")) {
+                take();
+                continue;
+            }
+            std::size_t before = i_;
+            NodePtr st = parseStatement();
+            if (st) n->list.push_back(st);
+            if (i_ == before) {
+                errorHere("SYN002", "`<" + n->text + ">` 内无法解析的内容，已跳过 `" +
+                                        cur().text + "`");
+                take();
+            }
+        }
+    }
+
+    if (atScopeClose(n->text)) {
+        take();  // '<'
+        take();  // '/'
+        take();  // name
+        expectPunct(">", "插槽作用域结束");
+    } else {
+        bag_.error(p, "SYN034", "`<" + n->text + ">` 没有对应的 `</" + n->text + ">`");
+    }
     return n;
 }
 
