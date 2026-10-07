@@ -1231,11 +1231,12 @@ NodePtr Parser::parseObjectLit() {
         if (acceptPunct(":")) {
             prop->a = parseTernary();
         } else if (checkPunct("(")) {
-            // Method shorthand is not part of the language: an object literal is a
-            // list of key/value pairs and nothing else.
-            bag_.error(prop->pos, "SYN031",
-                       "对象字面量只允许键值对，不支持方法简写；请写成 `" + prop->text +
-                           ": @ts{(…参数…) => { … }}`");
+            // Method definition: `key(params) { body }`.
+            //
+            // This is how a host object that carries behaviour is written - a noname
+            // skill object is exactly `{ trigger: {…}, filter(event, player) {…}, … }` -
+            // so it is part of the object literal grammar. It is still a *member*, not a
+            // key/value pair: the value is the method itself.
             auto fn = mk(NK::FnDecl, prop->pos);
             fn->text = prop->text;
             expectPunct("(", "方法参数");

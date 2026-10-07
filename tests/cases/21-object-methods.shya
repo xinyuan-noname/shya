@@ -1,0 +1,47 @@
+// 对象字面量里的方法定义：`key(params) { body }`。
+//
+// 宿主对象带行为时（无名杀技能对象就是 `{ trigger: {…}, filter(event, player) {…} }`）
+// 用这个形式书写；参数与返回值可以写类型标注，产物里会被剥掉。
+@ts{globalThis.trace = (m) => { console.log("trace " + m); };}
+
+declare fn trace(m: string): void
+
+declare Event {
+  kind: string
+}
+
+declare Player {
+  name: string
+}
+
+fn main() {
+  let skill = {
+    id: "judge_color",
+    translation: "判定颜色",
+    trigger: { player: "phaseBegin" },
+
+    // 无标注
+    filter(event, player) {
+      return event kind == "judge"
+    },
+
+    // 带参数标注与返回标注
+    content(event: Event, player: Player): void {
+      trace(player name + " 结算")
+    },
+
+    // 只读、无参
+    describe() {
+      return "判定颜色"
+    },
+  }
+
+  // 成员访问照旧：带括号是调用，不带括号读属性
+  console log(skill id, skill translation)
+  console log(skill filter({ kind: "judge" }, { name: "甲" }))
+  console log(skill filter({ kind: "draw" }, { name: "甲" }))
+  skill content({ kind: "judge" }, { name: "乙" })
+  console log(skill describe())
+}
+
+main()

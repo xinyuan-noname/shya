@@ -272,17 +272,51 @@ true  false  void
 { "带空格的键": 1, nested: { a: [] } }  // 字符串键与嵌套
 ```
 
-**对象字面量只允许键值对**，键是标识符或字符串字面量。以下形式会报错：
+对象字面量由**键值对**和**方法定义**两种成员组成，键是标识符或字符串字面量。
+带方法的对象会**一个成员一行**地输出，方法体正常缩进：
+
+```shya
+let skill = {
+  id: "judge_color",
+  trigger: { player: "phaseBegin" },
+
+  // 方法定义：key(参数) { 方法体 }
+  filter(event, player) {
+    return event kind == "judge"
+  },
+
+  content(event: Event, player: Player): void {   // 参数/返回可以写标注，产物里剥掉
+    trace(player name)
+  },
+}
+```
+
+```js
+let skill = {
+  id: "judge_color",
+  trigger: { player: "phaseBegin" },
+  filter(event, player) {
+    return event.kind === "judge";
+  },
+  content(event, player) {
+    trace(player.name);
+  },
+};
+```
+
+以下形式会报错：
 
 | 写法 | 结果 |
 | --- | --- |
-| `{ a }`（简写） | `SYN030`，提示写成 `{ a: a }` |
-| `{ f() { … } }`（方法简写） | `SYN031` |
+| `{ a }`（属性简写） | `SYN030`，提示写成 `{ a: a }` |
 | `{ ...x }`（展开） | `SYN013` |
 | `{ [k]: 1 }`（计算键） | `SYN013` |
 
 对象字面量只在**表达式位置**成立；语句开头的 `{` 一律是块，
 所以裸写 `{ a: 1 }` 当语句是语法错误（也没意义）。
+
+> 方法定义里的 `#插槽`（宏体）可以照常使用，所以技能骨架很适合写成宏 —— 见
+> `lib/skill-type.shya` 的 `@skill_trigger`。
 
 ### 4.2 运算符与优先级（低 → 高）
 
@@ -1003,7 +1037,7 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 | 前缀 | 阶段 | 例 |
 | --- | --- | --- |
 | `LEX` | 词法分析 | `LEX002` 无法识别的字符；`LEX006` 数学字面量缺少参数；`LEX009` 写了 `null`/`undefined` |
-| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN013` 对象字面量的键非法；`SYN023`+ `declare` 相关；`SYN030` 对象简写；`SYN031` 对象方法简写；`SYN032` 参数类型写了 `fn` |
+| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN013` 对象字面量的键非法（展开 / 计算键）；`SYN023`+ `declare` 相关；`SYN030` 属性简写；`SYN032` 参数类型写了 `fn` |
 | `MOD` | 宏文件导入 | `MOD001` 找不到宏文件；`MOD002` 循环导入；`MOD003` 宏文件本身有错；`MOD004` 宏文件里导入了非 `.shya`；`MOD005` 该文件没有这个宏 |
 | `MAC` | 宏展开/脱糖 | `MAC014` 未定义的宏；`MAC015` 插槽类型不符；`MAC016` 缺少参数；`MAC020` `@when` 无分支匹配 |
 | `TC` | 类型检查 | `TC003` 类型不符；`TC006` 参数个数不符；`TC010` 未声明的标识符（警告）；`TC013` const 重赋值；`TC014` 宿主类型没有该成员（警告）；`TC015` 把字段当方法调用 |

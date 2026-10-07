@@ -395,6 +395,29 @@ Codegen::Rendered Codegen::genExprP(const NodePtr& n) {
                 r.text = "{}";
                 return r;
             }
+            // A host object that carries behaviour - a noname skill object is
+            // `{ trigger: {…}, filter(event, player) {…}, content() {…} }` - gets one
+            // member per line. Inlined, the method bodies would collapse into a single
+            // unreadable line, which is the opposite of what this language is for.
+            bool hasMethod = false;
+            for (const auto& p : n->list) {
+                if (p && p->a && p->a->kind == NK::FnDecl) hasMethod = true;
+            }
+            if (hasMethod) {
+                std::string s = "{\n";
+                const int saved = depth_;
+                depth_ = saved + 1;
+                for (const auto& p : n->list) {
+                    s += pad();
+                    s += genExpr(p, 0);
+                    s += ",\n";
+                }
+                depth_ = saved;
+                s += pad();
+                s += "}";
+                r.text = s;
+                return r;
+            }
             std::string s = "{ ";
             for (std::size_t i = 0; i < n->list.size(); ++i) {
                 if (i) s += ", ";

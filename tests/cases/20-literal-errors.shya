@@ -1,4 +1,5 @@
-// 解析层拒绝的形态：对象字面量只允许键值对，函数不能作为参数传递。
+// 解析层拒绝的形态：对象字面量不接受简写，函数不能作为参数传递。
+// （方法定义 `key(params) { … }` 是允许的，见 21-object-methods。）
 declare fn hostMap(xs: array<number>, f: fn): array<number>
 
 fn apply(cb: fn): void {
@@ -11,10 +12,7 @@ fn main() {
   // 简写
   let shorthand = { a }
 
-  // 方法简写
-  let method = { f() { return 1 } }
-
-  console log(shorthand, method)
+  console log(shorthand)
 }
 
 main()
