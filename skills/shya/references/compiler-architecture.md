@@ -328,7 +328,7 @@ std::vector<std::vector<NK>> paramKinds;  // 这个槽精确接受的 NK 种类�
 `slotTypeFromName()` 认不出的类型名（返回 `SlotType::Unknown`）才是"节点种类"路线：
 `astKindsForTypeName(name)` 查 `astKindTable()`，命中就得到它接受的 `NK` 集合。
 `astSlotTypeNames()` 是"值类型/槽类型名 + 全部节点种类名"的合并清单，供文档与诊断使用。
-于是 `macro @swapIf(#cond: compare, #yes: stmt)` 能要求第一个实参**必须**是比较节点。
+于是 `macro @swapIf(#cond: Compare, #yes: stmt)` 能要求第一个实参**必须**是比较节点。
 每种节点各自的 `text`/`flag`/`list` 约定见 `docs/ast-nodes.md`，本节的表只负责
 "名字 ↔ `NK`"的映射（权威定义是 `src/shya.h` 的 `NK` 枚举 + `macro.cpp` 的 `astKindTable()`）。
 
@@ -404,7 +404,7 @@ std::vector<std::vector<NK>> paramKinds;  // 这个槽精确接受的 NK 种类�
 （`expr`/`stmt`/`callExpr` …）。`tests/cases/11-ast-types.shya` 覆盖了
 `compare`/`strLit`/`block` 三种正常路径。
 
-`evalWhen()` 也认识这些名字，所以 `@when(#x is binary)` 在编译期就能选分支：判定顺序是
+`evalWhen()` 也认识这些名字，所以 `@when(#x is Binary)` 在编译期就能选分支：判定顺序是
 **槽类型名（`stmt`/`callExpr`/`safeCallExpr`/`rangeExpr`/`expr`）→ 值类型名 →
 AST 节点种类**，且保持三值语义——`want` 不在这些表里一律 `Unknown`，`Unknown` 不选任何
 分支。命中节点种类表时结果是确定的 `True`/`False`（不再是 `Unknown`）。

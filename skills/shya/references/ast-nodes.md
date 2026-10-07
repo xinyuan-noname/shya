@@ -80,7 +80,7 @@
 插槽类型写在宏参数上：
 
 ```shya
-macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+macro @swapIf(#cond: Compare, #yes: stmt, #no: stmt) {
   if #cond {
     #yes
   } else {
@@ -114,49 +114,48 @@ CamelCase，两者不是同一个东西：`NK::Binary` 的节点种类名是 `bi
 
 | 插槽类型名 | 接受的 `NK` | 含义 | 例子（实参写法） |
 | --- | --- | --- | --- |
-| `numLit` | `Num` | 数字字面量 | `42` |
-| `mathLit` | `MathConst` | 数学字面量（折叠后） | `~pi` |
-| `strLit` | `Str` | 字符串字面量（必须是字面量，变量不算） | `"hello"` |
-| `tplLit` | `Tpl` | 模板字符串字面量 | `` `x${1}` `` |
-| `boolLit` | `Bool` | 布尔字面量 | `true` |
-| `voidLit` | `Void` | `void` | `void` |
-| `ident` | `Ident` | 标识符 | `hp` |
-| `arrayLit` | `ArrayLit` | 数组字面量 | `[1, 2]` |
-| `objectLit` | `ObjectLit` | 对象字面量 | `{ x: 1 }` |
-| `prop` | `Prop` | 属性对 / 具名插槽实参 | `x: 1` |
-| `unary` | `Unary` | 一元表达式 | `!ok` |
-| `binary` | `Binary` | 二元表达式 | `a + 1` |
-| `compare` | `Compare` | 比较 / `is` 判断 | `a < 2` |
-| `ternary` | `Ternary` | 三元表达式 | `c ? a : b` |
-| `call` | `Call` | 调用 | `draw(2)` |
-| `member` | `Member` | 成员访问 | `player hp` |
-| `index` | `Index` | 下标 | `arr[0]` |
-| `spread` | `Spread` | 展开 | `...xs` |
-| `await` | `Await` | `await` | `await p` |
-| `macroApply` | `MacroApply` | 宏调用（展开前） | `@zip(a, b)` |
-| `slotRef` | `SlotRef` | `#名字`（只在模板体内，作为实参出现的情况极罕见） | —— |
-| `tsRaw` | `TsRaw` | `@ts{ ... }` 块 | `@ts{1 + 1}` |
-| `rangeExpr` | `RangeExpr` | 范围表达式（**也是基础语义类型之一**） | `0:10,2` |
-| `assign` | `Assign` | 赋值 | `x = 1` |
-| `decl` | `Decl` | 变量声明 | `let x = 1` |
-| `incDec` | `IncDec` | 自增/自减 | `i++` |
-| `ifStmt` | `If` | `if` 语句 | `if a { }` |
-| `caseStmt` | `Case` | `case` 语句 | `case x { }` |
-| `caseArm` | `CaseArm` | case 的单个分支 | `"r": console log(1)` |
-| `whileStmt` | `ForWhile` | 条件循环（**名字是 `whileStmt`，不是 `forStmt`**） | `for n < 3 { n++ }` |
-| `forOf` | `ForOf` | 遍历循环 | `for c of hand { }` |
-| `forRange` | `ForRange` | `@range` 循环 | `for i of @range 0:9 { }` |
-| `fnDecl` | `FnDecl` | 函数声明 | `fn f() { }` |
-| `returnStmt` | `Return` | `return` | `return 1` |
-| `throwStmt` | `Throw` | `throw` | `throw new Error("x")` |
-| `tryStmt` | `Try` | `try/catch/finally` | `try { } catch e { }` |
-| `breakStmt` | `Break` | `break` | `break` |
-| `continueStmt` | `Continue` | `continue` | `continue` |
-| `importStmt` | `Import` | `import` | `import { a } from "./m.mjs"` |
-| `exportStmt` | `Export` | `export` | `export fn pub() { }` |
-| `block` | `Block` | 块 | `{ console log(1) }` |
-| `declareStmt` | `Declare` | `declare` 声明 | `declare Player { }` |
-| `exprStmt` | `ExprStmt` | 表达式语句 | `console log(1)` |
+| `Num` | `Num` | 数字字面量 | `42` |
+| `MathConst` | `MathConst` | 数学字面量（折叠后） | `~pi` |
+| `Str` | `Str` | 字符串字面量（必须是字面量，变量不算） | `"hello"` |
+| `Tpl` | `Tpl` | 模板字符串字面量 | `` `x${1}` `` |
+| `Bool` | `Bool` | 布尔字面量 | `true` |
+| `Void` | `Void` | `void` | `void` |
+| `Ident` | `Ident` | 标识符 | `hp` |
+| `ArrayLit` | `ArrayLit` | 数组字面量 | `[1, 2]` |
+| `ObjectLit` | `ObjectLit` | 对象字面量 | `{ x: 1 }` |
+| `Prop` | `Prop` | 属性对 / 具名插槽实参 | `x: 1` |
+| `Unary` | `Unary` | 一元表达式 | `!ok` |
+| `Binary` | `Binary` | 二元表达式 | `a + 1` |
+| `Compare` | `Compare` | 比较 / `is` 判断 | `a < 2` |
+| `Ternary` | `Ternary` | 三元表达式 | `c ? a : b` |
+| `Call` | `Call` | 调用 | `draw(2)` |
+| `Member` | `Member` | 成员访问 | `player hp` |
+| `Index` | `Index` | 下标 | `arr[0]` |
+| `Spread` | `Spread` | 展开 | `...xs` |
+| `Await` | `Await` | `await` | `await p` |
+| `MacroApply` | `MacroApply` | 宏调用（展开前） | `@zip(a, b)` |
+| `TsRaw` | `TsRaw` | `@ts{ ... }` 块 | `@ts{1 + 1}` |
+| `RangeExpr` | `RangeExpr` | 范围表达式 | `0:10,2` |
+| `Assign` | `Assign` | 赋值 | `x = 1` |
+| `Decl` | `Decl` | 变量声明 | `let x = 1` |
+| `IncDec` | `IncDec` | 自增/自减 | `i++` |
+| `If` | `If` | `if` 语句 | `if a { }` |
+| `Case` | `Case` | `case` 语句 | `case x { }` |
+| `CaseArm` | `CaseArm` | case 的单个分支 | `"r": console log(1)` |
+| `ForWhile` | `ForWhile` | 条件循环（**不是 `whileStmt`/`forStmt`**） | `for n < 3 { n++ }` |
+| `ForOf` | `ForOf` | 遍历循环 | `for c of hand { }` |
+| `ForRange` | `ForRange` | `@range` 循环 | `for i of @range 0:9 { }` |
+| `FnDecl` | `FnDecl` | 函数声明 | `fn f() { }` |
+| `Return` | `Return` | `return` | `return 1` |
+| `Throw` | `Throw` | `throw` | `throw new Error("x")` |
+| `Try` | `Try` | `try/catch/finally` | `try { } catch e { }` |
+| `Break` | `Break` | `break` | `break` |
+| `Continue` | `Continue` | `continue` | `continue` |
+| `Import` | `Import` | `import` | `import { a } from "./m.mjs"` |
+| `Export` | `Export` | `export` | `export fn pub() { }` |
+| `Block` | `Block` | 块 | `{ console log(1) }` |
+| `Declare` | `Declare` | `declare` 声明 | `declare Player { }` |
+| `ExprStmt` | `ExprStmt` | 表达式语句 | `console log(1)` |
 
 表结构是 `name → vector<NK>`，所以一个类型名可以对应多个 `NK`；当前表里每个名字恰好一个。
 
@@ -225,7 +224,7 @@ addressable: **substituting one of them into a template would rewrite the templa
 want = 右侧标识符文本
 ① 插槽形态    stmt / callExpr / safeCallExpr / rangeExpr / expr
 ② 值类型      array string number boolean object map set fn void rangeExpr unknown
-③ AST 种类    astKindTable() 里的任何名字（binary / call / member / strLit / …）
+③ AST 种类    astKindTable() 里的任何名字（Binary / Call / Member / Str / …）
 都不是        →  Unknown
 ```
 
@@ -241,31 +240,35 @@ want = 右侧标识符文本
    只有显式写 `#x is unknown` 才能命中 `TK::Unknown`。
 3. **③ AST 种类**查 `astKindTable()`：查得到就一定是 `True` / `False`（逐个比较 `arg->kind`），
    查不到才返回 `Unknown`。所以写错一个种类名 **不会报错**，只会永远不匹配，
-   最终以 `MAC020` 的形式暴露出来。
+   最终以 `MAC020` 的形式暴露出来。例外是**参数标注**：`#x: <类型名>` 里的名字若查不到
+   节点种类，但它是已知旧名（`strLit`）或只是大小写不同（`objectlit`），绑定参数时会直接报
+   `MAC015` 并给出正确拼写，不会等到 `@when` 才暴露。
 
-### 4.1 为什么字面量的种类名是 `strLit` / `numLit` / …
+### 4.1 为什么节点种类名是 `Str` / `Num` / `Bool` …
 
 `string`、`number`、`boolean` 在 ② 里已经被**值类型**占用了（`void`、`array`、`object`、
 `map`、`set`、`fn`、`unknown` 同理）。如果节点种类也叫 `string`，`@when(#x is string)`
 就会有两个互相冲突的含义：**静态类型是字符串**和**实参是字符串字面量**。
-所以节点种类必须换一套拼写，全部以 `Lit` 收尾，避开所有值类型名：
+所以节点种类沿用 `shya ast` 印出来的**节点种类名**（`Str` / `Num` / `Bool` / `Tpl` /
+`MathConst` / `ObjectLit` …），既避开全部值类型名，又和诊断输出、`ast` 子命令完全一致：
 
 | 值类型（②） | 节点种类（③） | `NK` |
 | --- | --- | --- |
-| `string` | `strLit` | `Str` |
-| `number` | `numLit` | `Num` |
-| `boolean` | `boolLit` | `Bool` |
-| `void` | `voidLit` | `Void` |
-| ——（无冲突） | `tplLit` | `Tpl` |
-| ——（无冲突） | `mathLit` | `MathConst` |
+| `string` | `Str` | `Str` |
+| `number` | `Num` | `Num` |
+| `boolean` | `Bool` | `Bool` |
+| `void` | `Void` | `Void` |
+| ——（无冲突） | `Tpl` | `Tpl` |
+| ——（无冲突） | `MathConst` | `MathConst` |
 
-`mathLit` 没有冲突对象，但它和 `strLit` / `numLit` 一样以 `Lit` 收尾，保持一族拼写。
+**类型名大小写敏感**：`Str` 是类型，`strLit` 不是（旧名会被 `MAC015` 指出正确拼写）。
+值类型名则始终是小写关键字。
 判断的差别是实打实的：
 
 ```shya
 macro @which(#x) {
   @when(#x is string) console log("静态类型是字符串（可能是变量、参数、字面量）")
-  @when(#x is strLit) console log("实参就是一个字符串字面量")
+  @when(#x is Str) console log("实参就是一个字符串字面量")
 }
 
 let s: string = "hello"
@@ -311,7 +314,7 @@ error: 宏 `@len` 的 @when 分支一个都没有匹配：无法静态确定参�
 成员访问按宿主类型规则处理（需要 `declare Player` 才会生成属性读取）。
 它**不会**校验你传进来的对象是不是真的 `Player` —— 这一点和 `array` / `string`
 这些有 `isKind` 检查的值类型完全不同。小写名字则一定参与判定，
-所以 `#x: compare` 传一个 `Ident` 就是 `MAC015`。
+所以 `#x: Compare` 传一个 `Ident` 就是 `MAC015`。
 
 唯一的中间地带是那六个基础插槽类型：`expr` / `stmt` / `type` / `expr[]` /
 `callExpr` / `safeCallExpr` 都是小写、都参与检查，但它们不是 AST 节点种类。
@@ -325,7 +328,7 @@ error: 宏 `@len` 的 @when 分支一个都没有匹配：无法静态确定参�
 ### 6.1 `@swapIf`：按节点形状挑参数
 
 ```shya
-macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+macro @swapIf(#cond: Compare, #yes: stmt, #no: stmt) {
   if #cond {
     #yes
   } else {
@@ -334,7 +337,7 @@ macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
 }
 ```
 
-- `#cond: compare` —— 只接受 `NK::Compare`。传 `Ident`、`Binary` 都会被绑定期拦下。
+- `#cond: Compare` —— 只接受 `NK::Compare`。传 `Ident`、`Binary` 都会被绑定期拦下。
 - `#yes: stmt` —— 表达式实参会自动被包成 `ExprStmt`（见 `bindArguments()`），
   所以 `console log("yes")` 这种调用能直接当语句传。
 - 缺省：`stmt` 插槽可以不传（渲染成 `Empty`），末尾参数省略不会报 `MAC016`。
@@ -349,14 +352,14 @@ let a = 1
 
 ```shya
 macro @kindOf(#x) {
-  @when(#x is binary) console log("  -> binary")
-  @when(#x is call) console log("  -> call")
-  @when(#x is member) console log("  -> member")
-  @when(#x is strLit) console log("  -> string literal")
-  @when(#x is numLit) console log("  -> number literal")
-  @when(#x is arrayLit) console log("  -> array literal")
-  @when(#x is tsRaw) console log("  -> @ts block")
-  @when(#x is ident) console log("  -> identifier")
+  @when(#x is Binary) console log("  -> binary")
+  @when(#x is Call) console log("  -> call")
+  @when(#x is Member) console log("  -> member")
+  @when(#x is Str) console log("  -> string literal")
+  @when(#x is Num) console log("  -> number literal")
+  @when(#x is ArrayLit) console log("  -> array literal")
+  @when(#x is TsRaw) console log("  -> @ts block")
+  @when(#x is Ident) console log("  -> identifier")
 }
 ```
 
@@ -372,14 +375,14 @@ macro @kindOf(#x) {
 ### 6.3 `@inBlock`：把整块语句夹起来
 
 ```shya
-macro @inBlock(#b: block) {
+macro @inBlock(#b: Block) {
   console log("block start")
   #b
   console log("block end")
 }
 ```
 
-`#b: block` 只接受 `NK::Block`，所以调用必须用具名插槽块的形式
+`#b: Block` 只接受 `NK::Block`，所以调用必须用具名插槽块的形式
 （`#b:` 后面解析出来的正好是一个 `Block`）：
 
 ```shya
@@ -391,18 +394,22 @@ macro @inBlock(#b: block) {
 ### 6.4 不匹配时报什么
 
 种类不对会在**绑定参数时**立刻报 `MAC015`，消息里同时给出要求的类型名和实参的真实
-节点种类名（`nodeKindName()` 的输出，CamelCase）：
+节点种类名（`nodeKindName()` 的输出）：
 
 ```
-error: 宏 `@echoLit` 的参数 `#x` 需要 AST 节点 `strLit`，但传入的是 `Num` [MAC015]
-error: 宏 `@swapIf` 的参数 `#cond` 需要 AST 节点 `compare`，但传入的是 `Ident` [MAC015]
+error: 宏 `@echoLit` 的参数 `#x` 需要 AST 节点 `Str`，但传入的是 `Num` [MAC015]
+error: 宏 `@swapIf` 的参数 `#cond`（位置参数）需要 AST 节点 `Compare`，但传入的是 `Ident` [MAC015]
 ```
 
 消息模板：
 
 ```
-宏 `@<宏名>` 的参数 `#<参数名>` 需要 AST 节点 `<要求的类型名>`，但传入的是 `<实际节点种类>`
+宏 `@<宏名>` 的参数 `#<参数名>`（<具名插槽|位置参数>）需要 AST 节点 `<要求的类型名>`，但传入的是 `<实际节点种类>`
 ```
 
-下半句用的是**节点种类**名（`Num` / `Ident` / `Block`），不是插槽类型名——
-拿它去 `astKindTable()` 里反查时记得转成小写加 `Lit`/`Stmt` 那套拼写。
+类型名与下半句的节点种类名现在**是同一套拼写**，可以直接对照；
+大小写写错（`strLit`）会得到一条专门的提示：
+
+```
+error: 宏 `@echoLit` 的参数 `#x` 的类型名大小写不匹配：`strLit` 应写作 `Str` [MAC015]
+```

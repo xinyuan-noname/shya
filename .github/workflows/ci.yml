@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The skill bundles the docs as references/*.md; a stale copy describes an older
+      # language while reading as authoritative. Fail before building anything else.
+      - name: Check the skill references are in sync with docs/
+        run: node tools/sync-skill.mjs --check
+
       - name: Build the compiler (MSVC)
         shell: cmd
         run: build.bat

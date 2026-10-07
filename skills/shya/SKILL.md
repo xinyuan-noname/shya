@@ -208,3 +208,6 @@ Python 风格宏库 `lib/pystd.shya`：
 - [ ] 用了宏的地方 `build/shya.exe core <file>` 看一眼展开结果是否符合预期
 - [ ] 新增/修改的用例已加入 `tests/cases/` 且 `node tests/run.mjs` 通过
 - [ ] 文档（语言参考 / AST 表 / 决策记录）已同步
+- [ ] **`node tools/sync-skill.mjs`** —— 把 `docs/` 同步进 `skills/shya/references/`
+      并安装到技能目录。**每次改完都必须跑**：skill 里那份参考如果落后于文档，
+      它会以权威的口吻描述一个旧版本的语言。CI 用 `--check` 拦这个。

@@ -220,8 +220,24 @@ docs/
   design-draft-v1.txt          设计稿原文（溯源）
   design-v2.md                 v2 相对原文的逐条改动
 skills/shya/SKILL.md           供 AI 助手使用的 shya 速查 skill
+skills/shya/references/        文档在 skill 里的副本（由 tools/sync-skill.mjs 同步）
+tools/sync-skill.mjs           把 docs/ 同步进 skill 并安装；--check 供 CI 用
 tests/                         用例、期望产物、测试运行器
 ```
+
+## 改动之后必须做的两件事
+
+改语言或改文档之后，除了 `node tests/run.mjs`，还要跑：
+
+```sh
+node tools/sync-skill.mjs        # docs/ -> skills/shya/references/，并安装到技能目录
+```
+
+skill 里打包了文档的副本，**落后的副本比没有副本更糟**：它会以权威的口吻描述一个
+旧版本的语言。CI 第一步就是 `node tools/sync-skill.mjs --check`，不一致直接失败。
+
+只改编译器内部（不影响文档描述的）可以跳过，但改了语言语义、诊断码、语法就一定要跑。
+
 
 ## 设计理念
 

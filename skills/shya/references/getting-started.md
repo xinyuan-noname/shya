@@ -233,14 +233,25 @@ fn main() {
 main()
 ```
 
-这是 shya 里唯一需要"记住规则"的地方：
+这是 shya 里唯一需要"记住规则"的地方 —— **括号决定一切**：
 
-| `declare` 里写的 | `p xxx` 编译成 |
-| --- | --- |
-| `name: string`（字段） | `p.name` —— 属性读取 |
-| `recover(n: number): void`（方法） | `p.recover(n)` —— 函数调用 |
+| 写法 | 编译成 | 说明 |
+| --- | --- | --- |
+| `p name`（字段） | `p.name` | 属性读取 |
+| `p judge`（无必填参数的方法） | `p.judge()` | 强类型才敢省略括号 |
+| `p judge()` | `p.judge()` | 写了括号一定是调用 |
+| `p recover(2)` | `p.recover(2)` | 有参数就必须写括号 |
+| `p hp`（**没声明过**的类型） | `p.hp` | 类型未知时按属性处理 |
 
-**没有 `declare` 的话，`p name` 会编译成 `p.name()`**，因为 shya 的默认规则是"一切皆是函数"。
+所以：**想要属性，直接写 `p xxx`；想要调用，就写括号。** 只有当成员被 `declare` 成
+「无必填参数的方法」时，省略括号才会被当成调用 —— 这正是"因为强类型，所以无参调用
+可以省括号"的含义。
+
+反过来，对字段写括号会被拦住：
+
+```
+error: 字段 `hp` 不是方法，不能调用（写成属性访问 `hp` 即可） [TC015]
+```
 
 宿主提供的全局函数也可以声明：
 
@@ -324,7 +335,7 @@ main()
 ### 6.3 插槽类型（传错了会被拦住）
 
 ```shya
-macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+macro @swapIf(#cond: Compare, #yes: stmt, #no: stmt) {
   if #cond {
     #yes
   } else {
@@ -332,7 +343,7 @@ macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
   }
 }
 
-macro @echoLit(#x: strLit) {
+macro @echoLit(#x: Str) {
   console log("字面量是 " + #x)
 }
 
@@ -344,7 +355,7 @@ fn main() {
 main()
 ```
 
-`#cond: compare` 要求实参必须是比较表达式；传 `1` 会报：
+`#cond: Compare` 要求实参必须是比较表达式；传 `1` 会报：
 
 ```
 error: 宏 `@swapIf` 的参数 `#cond` 需要 AST 节点 `compare`，但传入的是 `Num` [MAC015]
@@ -438,14 +449,48 @@ shya: check failed with 1 error(s)
 
 未声明的标识符只是警告，所以在 shya 里直接用宿主的全局量是没问题的。
 
+### 写不出文件时
+
+`shya: cannot write` 后面会跟三行，**先看 `reason`**：
+
+```
+shya: cannot write `./first.mjs`
+  resolved to: D:\project\shya-coding\first.mjs      ← 相对路径解析后的绝对位置
+  reason: Permission denied                          ← 操作系统给的原因
+  the directory is not writable by this process, or a policy denies the write
+  (this is a property of where the program runs from and where it writes, not of the source file)
+```
+
+| `reason` | 含义 | 怎么办 |
+| --- | --- | --- |
+| `No such file or directory` | 目标目录不存在 | 建目录，或用 `-o` 指到已有目录 |
+| `Permission denied` | 这个进程不许写这里 | 见下 |
+| 其它 | 磁盘满、路径过长等 | 按字面意思处理 |
+
+遇到 `Permission denied` 时，**先怀疑编译器可执行文件所在的位置**，而不是文件权限：
+
+从某个被沙箱/受限策略管辖的目录里启动的程序，可能只能写回该目录内部。实测过：同一个
+`shya.exe`（哈希逐字节相同）在 `D:\project\shya\build\` 里写不进别的项目目录，复制到
+`C:\tools\shya\` 后立刻正常。`shya.exe` 是单文件、无依赖，复制即可用：
+
+```powershell
+New-Item -ItemType Directory -Force C:\tools\shya
+Copy-Item D:\project\shya\build\shya.exe C:\tools\shya\shya.exe
+C:\tools\shya\shya.exe build 你的文件.shya
+```
+
+想确认不是权限问题，可以拿别的程序在同一目录里试写：`cmd /c "echo x > probe.txt"`。
+如果它也失败，那才是真的目录权限问题。
+
 ---
 
 ## 9. 五条思维模型（省掉 90% 的困惑）
 
 1. **换行就是语句分隔符**，分号可省。所以 `console log(1)` 换行 `console log(2)` 是两条语句；
    成员访问、宏的无括号插槽、后缀 `@宏` 都不跨行。
-2. **一切皆是函数**：`player getHp` 就是 `player.getHp()`。
-   要读真正的属性，用 `declare` 声明字段，或 `arr[i]`，或 `@ts{obj.prop}`。
+2. **括号决定调用**：`player hp` 读属性，`player judge()` 发调用。
+   `player judge`（无括号）只有在这个成员被 `declare` 成无参方法时才是调用；
+   类型未知时按属性读取。`. ` 不是运算符 —— 成员访问只有并置一种写法。
 3. **只有 `void`**：`null` 和 `undefined` 已经不存在了。
 4. **`define` 在编译期就没了**，`let`/`const` 由编译器推断。
 5. **宏在编译期展开**，产物是干净的 JS；`@ts{...}` 是你的逃生舱，里面的东西原样透传。
