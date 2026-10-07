@@ -1,0 +1,4 @@
+D:\project\shya\tests\cases\16-type-name-case.shya:16:1: error: 宏 `@echoLit` 的参数 `#x` 的类型名大小写不匹配：`strLit` 应写作 `Str` [MAC015]
+  @echoLit("hello")
+  ^
+shya: build failed with 1 error(s)

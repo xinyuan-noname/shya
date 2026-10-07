@@ -1,0 +1,16 @@
+// `#name: Type?` 插槽类型名大小写敏感：旧的小写拼写（strLit / objectLit /
+// ident …）一律报 MAC015，并给出正确的 AST 节点种类名。
+
+macro @echoLit(#x: strLit) {
+  console log("literal is " + #x)
+}
+
+macro @asObject(#x: objectLit) {
+  console log(#x)
+}
+
+macro @takeIdent(#x: ident) {
+  console log(#x)
+}
+
+@echoLit("hello")

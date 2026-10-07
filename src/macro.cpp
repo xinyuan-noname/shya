@@ -38,10 +38,15 @@ SlotType slotTypeFromName(const std::string& s) {
 // ------------------------------------------------- AST node kinds as types ---
 //
 // Every "structurally safe" AST node kind can be named in a macro parameter
-// annotation, so a macro can require e.g. `#cond: binary` or `#body: block`.
-// The macro-template internals (program, empty, macroDecl, when, whenArm,
-// each, slotList, optionalize, typeRef) are deliberately NOT addressable:
-// substituting one of them into a template would rewrite the template itself.
+// annotation, so a macro can require e.g. `#cond: Compare` or `#body: Block`.
+//
+// The names are the AST node kind names exactly as `shya ast` and the MAC015
+// diagnostics spell them (`Ident`, `Str`, `ObjectLit`, `If` …), and matching is
+// CASE SENSITIVE: `ident` / `strLit` are *not* the type `Ident` / `Str`. The
+// template-only nodes (`Program`, `Empty`, `MacroDecl`, `When`, `WhenArm`,
+// `Each`, `SlotList`, `Optionalize`, `TypeRef`) are deliberately NOT
+// addressable: substituting one of them into a template would rewrite the
+// template itself.
 
 struct AstKindEntry {
     const char* name;
@@ -50,51 +55,111 @@ struct AstKindEntry {
 
 const std::vector<AstKindEntry>& astKindTable() {
     static const std::vector<AstKindEntry> table = {
-        {"numLit", {NK::Num}},
-        {"mathLit", {NK::MathConst}},
-        {"strLit", {NK::Str}},
-        {"tplLit", {NK::Tpl}},
-        {"boolLit", {NK::Bool}},
-        {"voidLit", {NK::Void}},
-        {"ident", {NK::Ident}},
-        {"arrayLit", {NK::ArrayLit}},
-        {"objectLit", {NK::ObjectLit}},
-        {"prop", {NK::Prop}},
-        {"unary", {NK::Unary}},
-        {"binary", {NK::Binary}},
-        {"compare", {NK::Compare}},
-        {"ternary", {NK::Ternary}},
-        {"call", {NK::Call}},
-        {"member", {NK::Member}},
-        {"index", {NK::Index}},
-        {"spread", {NK::Spread}},
-        {"await", {NK::Await}},
-        {"macroApply", {NK::MacroApply}},
-        {"slotRef", {NK::SlotRef}},
-        {"tsRaw", {NK::TsRaw}},
-        {"rangeExpr", {NK::RangeExpr}},
-        {"assign", {NK::Assign}},
-        {"decl", {NK::Decl}},
-        {"incDec", {NK::IncDec}},
-        {"ifStmt", {NK::If}},
-        {"caseStmt", {NK::Case}},
-        {"caseArm", {NK::CaseArm}},
-        {"whileStmt", {NK::ForWhile}},
-        {"forOf", {NK::ForOf}},
-        {"forRange", {NK::ForRange}},
-        {"fnDecl", {NK::FnDecl}},
-        {"returnStmt", {NK::Return}},
-        {"throwStmt", {NK::Throw}},
-        {"tryStmt", {NK::Try}},
-        {"breakStmt", {NK::Break}},
-        {"continueStmt", {NK::Continue}},
-        {"importStmt", {NK::Import}},
-        {"exportStmt", {NK::Export}},
-        {"block", {NK::Block}},
-        {"declareStmt", {NK::Declare}},
-        {"exprStmt", {NK::ExprStmt}},
+        {"Num", {NK::Num}},
+        {"MathConst", {NK::MathConst}},
+        {"Str", {NK::Str}},
+        {"Tpl", {NK::Tpl}},
+        {"Bool", {NK::Bool}},
+        {"Void", {NK::Void}},
+        {"Ident", {NK::Ident}},
+        {"ArrayLit", {NK::ArrayLit}},
+        {"ObjectLit", {NK::ObjectLit}},
+        {"Prop", {NK::Prop}},
+        {"Unary", {NK::Unary}},
+        {"Binary", {NK::Binary}},
+        {"Compare", {NK::Compare}},
+        {"Ternary", {NK::Ternary}},
+        {"Call", {NK::Call}},
+        {"Member", {NK::Member}},
+        {"Index", {NK::Index}},
+        {"Spread", {NK::Spread}},
+        {"Await", {NK::Await}},
+        {"MacroApply", {NK::MacroApply}},
+        {"TsRaw", {NK::TsRaw}},
+        {"RangeExpr", {NK::RangeExpr}},
+        {"Assign", {NK::Assign}},
+        {"Decl", {NK::Decl}},
+        {"IncDec", {NK::IncDec}},
+        {"If", {NK::If}},
+        {"Case", {NK::Case}},
+        {"CaseArm", {NK::CaseArm}},
+        {"ForWhile", {NK::ForWhile}},
+        {"ForOf", {NK::ForOf}},
+        {"ForRange", {NK::ForRange}},
+        {"FnDecl", {NK::FnDecl}},
+        {"Return", {NK::Return}},
+        {"Throw", {NK::Throw}},
+        {"Try", {NK::Try}},
+        {"Break", {NK::Break}},
+        {"Continue", {NK::Continue}},
+        {"Import", {NK::Import}},
+        {"Export", {NK::Export}},
+        {"Block", {NK::Block}},
+        {"Declare", {NK::Declare}},
+        {"ExprStmt", {NK::ExprStmt}},
     };
     return table;
+}
+
+// The pre-1.0 spellings of the AST-kind slot types. They are NOT types any
+// more (matching is case sensitive and uses the node kind names), but naming
+// one in an annotation is a MAC015 that points at the right spelling instead of
+// a silent "unknown type".
+struct AstKindAlias {
+    const char* alias;
+    const char* name;
+};
+
+const std::vector<AstKindAlias>& astKindAliasTable() {
+    static const std::vector<AstKindAlias> table = {
+        {"numLit", "Num"},           {"mathLit", "MathConst"},
+        {"strLit", "Str"},           {"tplLit", "Tpl"},
+        {"boolLit", "Bool"},         {"voidLit", "Void"},
+        {"ident", "Ident"},          {"arrayLit", "ArrayLit"},
+        {"objectLit", "ObjectLit"},  {"prop", "Prop"},
+        {"unary", "Unary"},          {"binary", "Binary"},
+        {"compare", "Compare"},      {"ternary", "Ternary"},
+        {"call", "Call"},            {"member", "Member"},
+        {"index", "Index"},          {"spread", "Spread"},
+        {"await", "Await"},          {"macroApply", "MacroApply"},
+        {"tsRaw", "TsRaw"},          {"rangeExpr", "RangeExpr"},
+        {"assign", "Assign"},        {"decl", "Decl"},
+        {"incDec", "IncDec"},        {"ifStmt", "If"},
+        {"caseStmt", "Case"},        {"caseArm", "CaseArm"},
+        {"whileStmt", "ForWhile"},   {"forOf", "ForOf"},
+        {"forRange", "ForRange"},    {"fnDecl", "FnDecl"},
+        {"returnStmt", "Return"},    {"throwStmt", "Throw"},
+        {"tryStmt", "Try"},          {"breakStmt", "Break"},
+        {"continueStmt", "Continue"},{"importStmt", "Import"},
+        {"exportStmt", "Export"},    {"block", "Block"},
+        {"declareStmt", "Declare"},  {"exprStmt", "ExprStmt"},
+    };
+    return table;
+}
+
+// The right spelling for a token that is a known alias or a wrong-case version
+// of a real AST node kind (`strLit` -> `Str`, `objectlit` -> `ObjectLit`), or
+// nullptr when the token is simply not an AST node kind.
+const char* astKindSpellingMismatch(const std::string& token) {
+    for (const auto& e : astKindAliasTable()) {
+        if (token == e.alias) return e.name;
+    }
+    for (const auto& e : astKindTable()) {
+        if (token == e.name) return nullptr;
+    }
+    auto lower = [](const std::string& s) {
+        std::string r = s;
+        for (char& c : r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return r;
+    };
+    const std::string want = lower(token);
+    for (const auto& e : astKindTable()) {
+        if (lower(e.name) == want) return e.name;
+    }
+    for (const auto& e : astKindAliasTable()) {
+        if (lower(e.name) == want) return e.name;
+    }
+    return nullptr;
 }
 
 }  // namespace
@@ -124,6 +189,20 @@ bool isNilNode(const NodePtr& n) {
 }
 
 NodePtr makeNil(const Pos& p) { return mk(NK::Empty, p); }
+
+// `undefined` is the language's only "no value": it is what an omitted slot
+// becomes once it has to stand in an expression (`"a" + #optional` must not
+// leave a hole). Statement positions keep the `Empty` node and emit nothing.
+NodePtr makeUndef(const Pos& p) {
+    auto n = mk(NK::Void, p);
+    n->text = "undefined";
+    return n;
+}
+
+// Turns "expands to nothing" into `undefined` for expression positions.
+NodePtr orUndef(const NodePtr& n, const Pos& p) {
+    return (!n || n->kind == NK::Empty) ? makeUndef(p) : n;
+}
 
 NodePtr makeConcat(const std::vector<NodePtr>& parts, const Pos& p) {
     std::vector<NodePtr> live;
@@ -319,11 +398,17 @@ void MacroExpander::installStdlib() {
         def.system = true;
         for (std::size_t i = 0; i < st->names.size(); ++i) {
             std::string tn = i < st->typeAnns.size() ? st->typeAnns[i] : "";
+            bool opt = false;
+            if (!tn.empty() && tn.back() == '?') {
+                tn.pop_back();
+                opt = true;
+            }
             def.params.push_back(st->names[i]);
             def.paramTypes.push_back(slotTypeFromName(tn));
             def.paramTypeNames.push_back(tn);
             def.paramKinds.push_back(astKindsForTypeName(tn));
             def.variadic.push_back(i < st->flags.size() ? st->flags[i] : false);
+            def.optional.push_back(opt);
         }
         def.body = st->list;
         registerMacro(def);
@@ -337,11 +422,17 @@ void MacroExpander::registerMacroFromDecl(const NodePtr& n) {
     def.pos = n->pos;
     for (std::size_t i = 0; i < n->names.size(); ++i) {
         std::string tn = i < n->typeAnns.size() ? n->typeAnns[i] : "";
+        bool opt = false;
+        if (!tn.empty() && tn.back() == '?') {
+            tn.pop_back();
+            opt = true;
+        }
         def.params.push_back(n->names[i]);
         def.paramTypes.push_back(slotTypeFromName(tn));
         def.paramTypeNames.push_back(tn);
         def.paramKinds.push_back(astKindsForTypeName(tn));
         def.variadic.push_back(i < n->flags.size() ? n->flags[i] : false);
+        def.optional.push_back(opt);
     }
     def.body = n->list;
     registerMacro(def);
@@ -678,6 +769,8 @@ struct InstCtx {
     const Bindings* binds;
     int depth;
     DiagBag* bag;
+    // Guards against a binding that refers to its own slot (`#a: @m { #a: x }`).
+    std::set<const Node*>* expanding = nullptr;
 };
 
 NodePtr tsSubstitute(const NodePtr& n, const InstCtx& ctx);
@@ -730,6 +823,61 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx);
 
 void instStmts(const std::vector<NodePtr>& tpl, const InstCtx& ctx, std::vector<NodePtr>& out);
 
+// True when a template node substitutes to nothing. A slot with a nil binding
+// (an omitted `#name: Type?` slot or a `_` argument) and `_` itself are empty;
+// so is a named-slot block whose body is empty, which is how `#id:` with
+// nothing after the colon arrives.
+bool instIsNil(const NodePtr& t, const InstCtx& ctx) {
+    if (!t) return true;
+    if (t->kind == NK::Empty) return true;
+    if (t->kind == NK::SlotRef) {
+        auto it = ctx.binds->find(t->text);
+        if (it == ctx.binds->end()) return false;
+        return it->second.nil || !it->second.node;
+    }
+    if (t->kind == NK::Ident && t->flag && t->text == "_") return true;
+    if (t->kind == NK::Block) {
+        for (const auto& s : t->list)
+            if (!instIsNil(s, ctx)) return false;
+        return true;
+    }
+    return false;
+}
+
+// A named slot (`#name: ...`) is parsed as a statement Block. In expression
+// position a Block holding exactly one expression contributes that expression,
+// and an empty Block contributes `{}` (a bare `{}` in expression position is an
+// object literal); anything else is real statement code and cannot stand where
+// an expression is required.
+NodePtr instBlockExpr(const NodePtr& tpl, const InstCtx& ctx, const NodePtr& body) {
+    std::vector<NodePtr> parts;
+    for (const auto& s : body->list) {
+        if (instIsNil(s, ctx)) continue;
+        if (s && s->kind == NK::ExprStmt) {
+            NodePtr e = instExpr(s->a, ctx);
+            if (e && e->kind != NK::Empty) parts.push_back(e);
+            continue;
+        }
+        if (s && s->kind == NK::Block) {
+            // A nested bare `{}`: an empty object literal, not a statement.
+            bool empty = true;
+            for (const auto& inner : s->list) {
+                if (!instIsNil(inner, ctx)) empty = false;
+            }
+            if (empty) {
+                parts.push_back(mk(NK::ObjectLit, s->pos));
+                continue;
+            }
+        }
+        ctx.bag->error(s ? s->pos : tpl->pos, "MAC013",
+                       "具名插槽的值包含语句，只能用在语句位置（表达式位置需要一条表达式）");
+        return makeNil(tpl->pos);
+    }
+    // No value at all: `{ key: #slot }` has to become `{ key: undefined }`.
+    if (parts.empty()) return makeUndef(tpl->pos);
+    return makeConcat(parts, tpl->pos);
+}
+
 // Chooses the arms of a @when that should be materialised.
 std::vector<NodePtr> chooseWhenArms(const NodePtr& when, const InstCtx& ctx) {
     std::vector<NodePtr> chosen;
@@ -766,7 +914,7 @@ NodePtr instWhenExpr(const NodePtr& when, const InstCtx& ctx) {
             }
         }
     }
-    return makeConcat(parts, when->pos);
+    return orUndef(makeConcat(parts, when->pos), when->pos);
 }
 
 NodePtr instEachExpr(const NodePtr& each, const InstCtx& ctx) {
@@ -789,7 +937,7 @@ NodePtr instEachExpr(const NodePtr& each, const InstCtx& ctx) {
         b.node = e;
         b.slot = ctx.self->inferSlotTypePublic(e);
         nested[each->text] = b;
-        InstCtx sub{ctx.self, &nested, ctx.depth, ctx.bag};
+        InstCtx sub{ctx.self, &nested, ctx.depth, ctx.bag, ctx.expanding};
         std::vector<NodePtr> body;
         instStmts(each->list, sub, body);
         for (const auto& st : body) {
@@ -798,7 +946,7 @@ NodePtr instEachExpr(const NodePtr& each, const InstCtx& ctx) {
             else ctx.bag->error(each->pos, "MAC007", "@each 在表达式位置只能包含表达式");
         }
     }
-    return makeConcat(parts, each->pos);
+    return orUndef(makeConcat(parts, each->pos), each->pos);
 }
 
 void instEachStmts(const NodePtr& each, const InstCtx& ctx, std::vector<NodePtr>& out) {
@@ -820,7 +968,7 @@ void instEachStmts(const NodePtr& each, const InstCtx& ctx, std::vector<NodePtr>
         b.node = e;
         b.slot = ctx.self->inferSlotTypePublic(e);
         nested[each->text] = b;
-        InstCtx sub{ctx.self, &nested, ctx.depth, ctx.bag};
+        InstCtx sub{ctx.self, &nested, ctx.depth, ctx.bag, ctx.expanding};
         instStmts(each->list, sub, out);
     }
 }
@@ -836,8 +984,20 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx) {
                 ctx.bag->error(tpl->pos, "MAC008", "未绑定的插槽 `#" + tpl->text + "`");
                 return makeNil(tpl->pos);
             }
-            if (it->second.nil || !it->second.node) return makeNil(tpl->pos);
-            return ctx.self->cloneNodePublic(it->second.node);
+            if (it->second.nil || !it->second.node) return makeUndef(tpl->pos);
+            // Instantiate the bound node through the expression path, so that a
+            // named-slot block (`#name: value` arrives as a statement Block)
+            // contributes its expression instead of a `{ value; }` statement.
+            Node* raw = it->second.node.get();
+            if (ctx.expanding->count(raw)) {
+                ctx.bag->error(tpl->pos, "MAC012",
+                               "插槽 `#" + tpl->text + "` 的实参引用了自己，无法展开");
+                return makeNil(tpl->pos);
+            }
+            ctx.expanding->insert(raw);
+            NodePtr res = instExpr(it->second.node, ctx);
+            ctx.expanding->erase(raw);
+            return res;
         }
         case NK::TsRaw:
             return makeTsRaw(tpl, ctx);
@@ -850,6 +1010,9 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx) {
             n->a = instExpr(tpl->a, ctx);
             return n;
         }
+        case NK::Block:
+        case NK::Program:
+            return instBlockExpr(tpl, ctx, tpl);
         case NK::Binary: {
             if (tpl->text == "concat") {
                 std::vector<NodePtr> parts;
@@ -862,7 +1025,7 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx) {
                     }
                 };
                 walk(tpl);
-                return makeConcat(parts, tpl->pos);
+                return orUndef(makeConcat(parts, tpl->pos), tpl->pos);
             }
             auto n = mk(NK::Binary, tpl->pos);
             n->text = tpl->text;
@@ -967,15 +1130,14 @@ NodePtr instExpr(const NodePtr& tpl, const InstCtx& ctx) {
             instStmts(tpl->list, ctx, n->list);
             return n;
         }
-        case NK::Block:
-        case NK::Program: {
-            auto n = mk(tpl->kind, tpl->pos);
-            instStmts(tpl->list, ctx, n->list);
-            return n;
-        }
         default: {
             // Statements reaching expression position (or unknown kinds) are
-            // cloned with their expression children substituted.
+            // cloned with their expression children substituted. A statement
+            // Block (what a named slot `#name: ...` arrives as) must not be
+            // cloned verbatim: that is how `{ "hi"; }` used to end up inside an
+            // object literal. One expression means it *is* that expression.
+            if (tpl->kind == NK::Block || tpl->kind == NK::Program)
+                return instBlockExpr(tpl, ctx, tpl);
             return ctx.self->cloneNodePublic(tpl);
         }
     }
@@ -1009,6 +1171,11 @@ void instStmts(const std::vector<NodePtr>& tpl, const InstCtx& ctx, std::vector<
                 }
                 auto n = mk(NK::ExprStmt, st->pos);
                 n->a = instExpr(st->a, ctx);
+                // A statement that expanded to nothing stays nothing: it must
+                // not become a stray `undefined;` in the output.
+                if (!n->a || n->a->kind == NK::Empty ||
+                    (n->a->kind == NK::Void && n->a->text == "undefined"))
+                    break;
                 out.push_back(n);
                 break;
             }
@@ -1110,6 +1277,14 @@ void instStmts(const std::vector<NodePtr>& tpl, const InstCtx& ctx, std::vector<
                 break;
             }
             case NK::Assign: {
+                // An assignment whose receiver is an omitted `#name: Type?` slot
+                // produces nothing at all (`#id = { ... }` with no `#id` must not
+                // leave a dangling ` = { ... }`).
+                bool allNil = !st->targets.empty();
+                for (const auto& t : st->targets) {
+                    if (!instIsNil(t, ctx)) allNil = false;
+                }
+                if (allNil) break;
                 auto n = mk(NK::Assign, st->pos);
                 n->text = st->text;  // compound-assignment operator, if any
                 for (const auto& t : st->targets) n->targets.push_back(instExpr(t, ctx));
@@ -1337,7 +1512,8 @@ std::vector<NodePtr> MacroExpander::expandMacroStatements(const NodePtr& call, i
     Bindings binds;
     if (!bindArguments(*def, call, binds)) return out;
 
-    InstCtx ctx{this, &binds, depth, &bag_};
+    std::set<const Node*> expanding;
+    InstCtx ctx{this, &binds, depth, &bag_, &expanding};
     std::vector<NodePtr> raw;
     instStmts(def->body, ctx, raw);
 
@@ -1409,11 +1585,12 @@ NodePtr MacroExpander::expandMacroApply(const NodePtr& call, int depth) {
         // sequence is impossible, so require statement position.
         if (parts.size() == 1) return parts[0];
         bag_.error(call->pos, "MAC013",
-                   "宏 `@" + call->text + "` 展开为多条语句，只能用作语句");
+                   "宏 `@" + call->text + "` 展开为 " + std::to_string(stmts.size()) +
+                       " 条语句，只能用作语句（表达式位置需要恰好一条表达式）");
         return makeNil(call->pos);
     }
     bag_.error(call->pos, "MAC013",
-               "宏 `@" + call->text + "` 展开为多条语句，只能用作语句");
+               "宏 `@" + call->text + "` 展开为多条语句，只能用作语句（表达式位置需要恰好一条表达式）");
     return makeNil(call->pos);
 }
 
@@ -1438,29 +1615,118 @@ bool MacroExpander::bindArguments(const MacroDef& def, const NodePtr& call, Bind
         }
     }
 
+    // Fills one binding and reports a MAC015 when the argument does not match
+    // the declared slot type. Named slots arrive as a statement Block (the
+    // parser wraps `#name: ...` bodies that way), so a Block holding exactly one
+    // expression is unwrapped first: `#trigger: {}` is an ObjectLit, not a
+    // statement.
+    auto bindOne = [&](std::size_t i, const NodePtr& arg, const Pos& where,
+                       const char* how) -> bool {
+        const SlotType want = def.paramTypes[i];
+        Binding b;
+        b.slot = want;
+        if (isNilNode(arg)) {
+            b.nil = true;
+            b.node = makeNil(where);
+            binds[def.params[i]] = b;
+            return true;
+        }
+        NodePtr forKind = arg;
+        if (forKind->kind == NK::Block && forKind->list.size() == 1 &&
+            forKind->list[0] && forKind->list[0]->kind == NK::ExprStmt)
+            forKind = forKind->list[0]->a;
+        // `#name: {}` / `#name: { … }` is a block written by hand, not the
+        // statement wrapper: an empty one is an object literal, otherwise the
+        // inner block itself is the value the parser saw first.
+        if (forKind->kind == NK::Block && forKind->list.size() == 1 &&
+            forKind->list[0] && forKind->list[0]->kind == NK::Block) {
+            const NodePtr& inner = forKind->list[0];
+            forKind = inner->list.empty() ? mk(NK::ObjectLit, inner->pos) : inner;
+        }
+        // A `Block` slot accepts any statement block: the named-slot wrapper
+        // (`#b: console log(1)`, which the parser stores as Block[ExprStmt])
+        // counts as a one-statement block, exactly like `#b: { console log(1) }`.
+        bool wantBlock = false;
+        for (NK k : def.paramKinds[i])
+            if (k == NK::Block) wantBlock = true;
+        if (wantBlock && forKind->kind != NK::Block) {
+            auto blk = mk(NK::Block, arg->pos);
+            blk->list.push_back(arg);
+            forKind = blk;
+        }
+        SlotType got = inferSlotType(arg);
+        if (want == SlotType::Stmt && got != SlotType::Stmt) {
+            // An expression may stand in for a statement slot; wrap it.
+            auto st = mk(NK::ExprStmt, arg->pos);
+            st->a = arg;
+            b.node = st;
+            b.slot = SlotType::Stmt;
+            binds[def.params[i]] = b;
+            return true;
+        }
+        b.node = arg;
+        b.slot = got;
+        if (want == SlotType::Type) b.slot = SlotType::Type;
+        // AST node kind names are case sensitive: `strLit` is not `Str`. Say so
+        // instead of silently treating the annotation as an untyped slot.
+        if (want == SlotType::Unknown) {
+            std::string head = def.paramTypeNames[i];
+            std::size_t bar = head.find('|');
+            if (bar != std::string::npos) head = head.substr(0, bar);
+            if (const char* right = astKindSpellingMismatch(head)) {
+                bag_.error(call->pos, "MAC015",
+                           "宏 `@" + def.name + "` 的参数 `#" + def.params[i] +
+                               "` 的类型名大小写不匹配：`" + head + "` 应写作 `" + right + "`");
+                return false;
+            }
+        }
+        if (!def.paramKinds[i].empty()) {
+            // The parameter names a concrete AST node kind.
+            bool kindOk = false;
+            for (NK k : def.paramKinds[i]) {
+                if (forKind->kind == k) kindOk = true;
+            }
+            if (!kindOk && want == SlotType::SafeCallExpr && forKind->kind == NK::Call &&
+                forKind->flag)
+                kindOk = true;
+            if (!kindOk) {
+                bag_.error(arg->pos, "MAC015",
+                           "宏 `@" + def.name + "` 的参数 `#" + def.params[i] + "`（" + how +
+                               "）需要 AST 节点 `" + def.paramTypeNames[i] +
+                               "`，但传入的是 `" + nodeKindName(forKind->kind) + "`");
+                return false;
+            }
+        } else if (!typeMatches(want, got)) {
+            bag_.error(arg->pos, "MAC015",
+                       "宏 `@" + def.name + "` 的参数 `#" + def.params[i] + "`（" + how +
+                           "）需要 " + slotTypeName(want) + "，但传入的是 " + slotTypeName(got));
+            return false;
+        }
+        binds[def.params[i]] = b;
+        return true;
+    };
+
     // Named arguments win; positional arguments (the postfix target first) then
     // fill the parameters that no named slot claimed, in declaration order.
+    // An omitted optional slot (`#name: Type?`) is left unbound, so every
+    // reference to it renders as nothing.
     std::vector<bool> bound(def.params.size(), false);
     bool ok = true;
     for (std::size_t i = 0; i < def.params.size(); ++i) {
         auto nit = named.find(def.params[i]);
         if (nit == named.end()) continue;
-        Binding b;
-        b.node = nit->second;
-        b.slot = def.paramTypes[i] == SlotType::Unknown ? SlotType::Stmt : def.paramTypes[i];
-        binds[def.params[i]] = b;
         bound[i] = true;
+        if (!bindOne(i, nit->second, call->pos, "具名插槽")) ok = false;
     }
 
     std::size_t pi = 0;
     for (std::size_t i = 0; i < def.params.size(); ++i) {
         if (bound[i]) continue;
-        Binding b;
-        b.slot = def.paramTypes[i];
         if (def.variadic[i]) {
             auto list = mk(NK::ArrayLit, call->pos);
             list->flag = true;  // variadic slot list
             while (pi < positional.size()) list->list.push_back(positional[pi++]);
+            Binding b;
             b.node = list;
             b.slot = SlotType::ExprList;
             binds[def.params[i]] = b;
@@ -1469,50 +1735,15 @@ bool MacroExpander::bindArguments(const MacroDef& def, const NodePtr& call, Bind
         }
         if (pi < positional.size()) {
             NodePtr arg = positional[pi++];
-            if (isNilNode(arg)) {
-                b.nil = true;
-                b.node = makeNil(call->pos);
-            } else {
-                SlotType got = inferSlotType(arg);
-                if (def.paramTypes[i] == SlotType::Type) got = SlotType::Type;
-                b.node = arg;
-                b.slot = got;
-                if (def.paramTypes[i] == SlotType::Stmt && got != SlotType::Stmt) {
-                    // An expression may stand in for a statement slot; wrap it.
-                    auto st = mk(NK::ExprStmt, arg->pos);
-                    st->a = arg;
-                    b.node = st;
-                    b.slot = SlotType::Stmt;
-                } else if (!def.paramKinds[i].empty()) {
-                    // The parameter names a concrete AST node kind.
-                    bool kindOk = false;
-                    for (NK k : def.paramKinds[i]) {
-                        if (arg->kind == k) kindOk = true;
-                    }
-                    if (!kindOk && def.paramTypes[i] == SlotType::SafeCallExpr &&
-                        arg->kind == NK::Call && arg->flag)
-                        kindOk = true;
-                    if (!kindOk) {
-                        bag_.error(arg->pos, "MAC015",
-                                   "宏 `@" + def.name + "` 的参数 `#" + def.params[i] +
-                                       "` 需要 AST 节点 `" + def.paramTypeNames[i] +
-                                       "`，但传入的是 `" + nodeKindName(arg->kind) + "`");
-                        ok = false;
-                    }
-                } else if (!typeMatches(def.paramTypes[i], got)) {
-                    bag_.error(arg->pos, "MAC015",
-                               "宏 `@" + def.name + "` 的参数 `#" + def.params[i] +
-                                   "` 需要 " + slotTypeName(def.paramTypes[i]) + "，但传入的是 " +
-                                   slotTypeName(got));
-                    ok = false;
-                }
-            }
-            binds[def.params[i]] = b;
             bound[i] = true;
+            if (!bindOne(i, arg, call->pos, "位置参数")) ok = false;
             continue;
         }
-        // Missing argument: stmt slots may be omitted (renders as nothing).
-        if (def.paramTypes[i] == SlotType::Stmt) {
+        // Missing argument: stmt slots and `#name: Type?` slots may be omitted
+        // (they render as nothing).
+        if (def.paramTypes[i] == SlotType::Stmt ||
+            (i < def.optional.size() && def.optional[i])) {
+            Binding b;
             b.nil = true;
             b.node = makeNil(call->pos);
             binds[def.params[i]] = b;

@@ -31,6 +31,9 @@
       "include": "#slot-labels"
     },
     {
+      "include": "#slot-types"
+    },
+    {
       "include": "#slots"
     },
     {
@@ -78,7 +81,6 @@
         }
       ]
     },
-
     "operators": {
       "comment": "Put ~/ first so that the truncating-division operator can never be read as the start of a math literal. The lookahead on ? keeps the safe-call operator (f?(x)) distinct from the ternary.",
       "patterns": [
@@ -140,7 +142,6 @@
         }
       ]
     },
-
     "numbers": {
       "patterns": [
         {
@@ -173,7 +174,6 @@
         }
       ]
     },
-
     "math-literals": {
       "comment": "Compile-time math constants, folded during lexing. Function forms (ln/lg/db/deg/rad/sqrt) take a numeric literal argument and nest: ~ln~deg360 evaluates to ln(deg(360)). Constant forms (~pi, ~e, ~tau, ~inf and the Unicode spellings) take no argument. The trailing (?![\\w$\\u00A1-\\uFFFF]) guard stops ~pi from swallowing an identifier prefix. Nesting is written out explicitly to three levels rather than with an Oniguruma recursive subexpression call (\\g<0>), which is not needed for the documented forms and not guaranteed to be supported by every TextMate implementation.",
       "patterns": [
@@ -191,7 +191,6 @@
         }
       ]
     },
-
     "ts-blocks": {
       "comment": "@ts{ ... } is a verbatim JS/TS passthrough, so the whole region is scoped meta.embedded.block.javascript.shya and offered to the JavaScript grammar. The rule deliberately uses the plain end '\\}' instead of an Oniguruma recursive subexpression call (\\g<0>), which vscode-textmate is not guaranteed to support: TextMate's own begin/end nesting already counts the braces, so '@ts{{ say: (m) => log(m) }}' closes on the outer brace, and a nested rule from source.js (an object literal, a function body) closes its own brace first because rule closing is stack-based.",
       "patterns": [
@@ -221,7 +220,6 @@
         }
       ]
     },
-
     "macro-definition": {
       "comment": "macro @name(#slot: type, ...#rest: expr[]) { ... } — the @name after the macro keyword is a definition, so it gets entity.name.function.definition.",
       "patterns": [
@@ -242,7 +240,6 @@
         }
       ]
     },
-
     "builtin-control-macros": {
       "comment": "Compile-time control macros. @each/@when/@range are recognised for highlighting only; the grammar does not validate their shape.",
       "patterns": [
@@ -284,7 +281,6 @@
         }
       ]
     },
-
     "macro-usage": {
       "comment": "Macro invocation (@len, @keys, @safe, @share, ...), in both prefix and postfix position.",
       "patterns": [
@@ -302,7 +298,6 @@
         }
       ]
     },
-
     "slot-labels": {
       "comment": "Named slot block label: #red: ... . Must be tried before the generic slot rule (the trailing colon is what makes it a label) and before the ternary/':' operator.",
       "patterns": [
@@ -320,7 +315,6 @@
         }
       ]
     },
-
     "slots": {
       "comment": "Slot reference: #name, and slot declarations in a macro header or @each(...): #name, ...#rest: expr[]. The lookahead excludes the label form handled above.",
       "patterns": [
@@ -353,7 +347,6 @@
         }
       ]
     },
-
     "function-declaration": {
       "comment": "fn / async fn / export fn declarations, including a nested function-expression rule for the parameter defaults and object method shorthand inside the body.",
       "patterns": [
@@ -426,7 +419,6 @@
         }
       ]
     },
-
     "fn-expression": {
       "comment": "fn as an expression: `fn (x) { ... }` / `async fn (x) { ... }` — anonymous, so there is no name capture.",
       "patterns": [
@@ -479,7 +471,6 @@
         }
       ]
     },
-
     "declare-block": {
       "comment": "declare Player { ... } — a host-object declaration block; emits no JavaScript at all.",
       "patterns": [
@@ -521,7 +512,6 @@
         }
       ]
     },
-
     "type-annotation": {
       "comment": "A type after ':' — as in `let hp: number`, `fn f(...): boolean` and declare members like `getHp(): number`. Nested generics (array<number>) and unions (number | void) are included recursively.",
       "patterns": [
@@ -551,7 +541,6 @@
         }
       ]
     },
-
     "strings": {
       "comment": "Double-quoted and single-quoted strings, plus template strings whose ${ ... } contents are shya expressions (so they are re-included as #root).",
       "patterns": [
@@ -610,7 +599,6 @@
         }
       ]
     },
-
     "keywords": {
       "comment": "Language keywords. Void is included. Deliberately kept faithful to the reference list: `null` and `undefined` are not shya spellings.",
       "patterns": [
@@ -664,13 +652,47 @@
         }
       ]
     },
-
     "wildcard": {
       "comment": "`_` is the shya placeholder: a no-op statement, or the 'no target' marker in a macro call. It is not a usable variable name.",
       "patterns": [
         {
           "name": "variable.language.wildcard.shya",
           "match": "(?<![\\w$\\u00A1-\\uFFFF])_(?![\\w$\\u00A1-\\uFFFF])"
+        }
+      ]
+    },
+    "slot-types": {
+      "comment": "AST node kind names usable as macro slot types (#cond: Compare, #body: Block). They are case sensitive and match the node kind names the compiler prints; included before #type-annotation so they win over the generic identifier rule.",
+      "patterns": [
+        {
+          "name": "meta.slot.type.optional.shya",
+          "match": "\\b(Num|MathConst|Str|Tpl|Bool|Void|Ident|ArrayLit|ObjectLit|Prop|Unary|Binary|Compare|Ternary|Call|Member|Index|Spread|Await|MacroApply|TsRaw|RangeExpr|Assign|Decl|IncDec|If|Case|CaseArm|ForWhile|ForOf|ForRange|FnDecl|Return|Throw|Try|Break|Continue|Import|Export|Block|Declare|ExprStmt)(\\?)(?=\\s*[,)=\\n])",
+          "captures": {
+            "1": {
+              "name": "support.type.ast-node.shya"
+            },
+            "2": {
+              "name": "keyword.operator.optional.shya"
+            }
+          }
+        },
+        {
+          "name": "meta.slot.type.shya",
+          "match": "\\b(Num|MathConst|Str|Tpl|Bool|Void|Ident|ArrayLit|ObjectLit|Prop|Unary|Binary|Compare|Ternary|Call|Member|Index|Spread|Await|MacroApply|TsRaw|RangeExpr|Assign|Decl|IncDec|If|Case|CaseArm|ForWhile|ForOf|ForRange|FnDecl|Return|Throw|Try|Break|Continue|Import|Export|Block|Declare|ExprStmt)\\b",
+          "captures": {
+            "1": {
+              "name": "support.type.ast-node.shya"
+            }
+          }
+        },
+        {
+          "name": "meta.slot.type.optional-modifier.shya",
+          "match": "(\\?)(?=\\s*[,)=\\n])",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.optional.shya"
+            }
+          }
         }
       ]
     }

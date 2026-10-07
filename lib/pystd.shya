@@ -164,7 +164,7 @@ macro @repr(#x) {
 // 这两个宏用到了上面的 @any / @all。具名导入时会自动把被依赖的宏一起拉进来，
 // 所以 `import { @assertAny } from "…/pystd.shya"` 不需要额外写 @any。
 
-macro @assertAny(#seq, #message: strLit) {
+macro @assertAny(#seq, #message: Str) {
   if (@any(#seq)) {
     console log("通过：" + #message)
   } else {
@@ -172,7 +172,7 @@ macro @assertAny(#seq, #message: strLit) {
   }
 }
 
-macro @assertAll(#seq, #message: strLit) {
+macro @assertAll(#seq, #message: Str) {
   if (@all(#seq)) {
     console log("通过：" + #message)
   } else {

@@ -1,7 +1,8 @@
 // 宏插槽类型可以是 AST 节点种类
 // 见 docs/ast-nodes.md：安全节点都能当类型用，宏模板内部节点除外。
+// 类型名就是 AST 节点种类名，严格区分大小写（写 `Str`，不是 `strLit`）。
 
-macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+macro @swapIf(#cond: Compare, #yes: stmt, #no: stmt) {
   if #cond {
     #yes
   } else {
@@ -10,23 +11,23 @@ macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
 }
 
 macro @kindOf(#x) {
-  @when(#x is binary) console log("  -> binary")
-  @when(#x is call) console log("  -> call")
-  @when(#x is member) console log("  -> member")
-  @when(#x is strLit) console log("  -> string literal")
-  @when(#x is numLit) console log("  -> number literal")
-  @when(#x is arrayLit) console log("  -> array literal")
-  @when(#x is tsRaw) console log("  -> @ts block")
-  @when(#x is ident) console log("  -> identifier")
+  @when(#x is Binary) console log("  -> binary")
+  @when(#x is Call) console log("  -> call")
+  @when(#x is Member) console log("  -> member")
+  @when(#x is Str) console log("  -> string literal")
+  @when(#x is Num) console log("  -> number literal")
+  @when(#x is ArrayLit) console log("  -> array literal")
+  @when(#x is TsRaw) console log("  -> @ts block")
+  @when(#x is Ident) console log("  -> identifier")
 }
 
-macro @inBlock(#b: block) {
+macro @inBlock(#b: Block) {
   console log("block start")
   #b
   console log("block end")
 }
 
-macro @echoLit(#x: strLit) {
+macro @echoLit(#x: Str) {
   console log("literal is " + #x)
 }
 

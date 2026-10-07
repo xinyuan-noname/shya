@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.3
+
+Follows the compiler's slot-type rename (`Str` instead of `strLit`, `ObjectLit`, `Compare`, …,
+case sensitive) and adds tooling for it:
+
+- **Slot-type completion.** In a macro header, typing after `#slot:` completes the base slot
+  categories (`expr` / `stmt` / `type` / `expr[]` / `callExpr` / `safeCallExpr`), the 42 AST
+  node kinds, and the optional-slot `?`. The list is filtered by the typed prefix and only
+  appears inside a `macro @name(…)` header.
+- **Legacy spellings are taught, not suggested blindly.** Once the typed prefix no longer
+  matches a current name, the old spellings that fit are offered with the name they were
+  renamed to (`strLit` → `Str`), matching the compiler's `MAC015`.
+- **Highlighting.** AST node kinds are scoped as `support.type.ast-node.shya`, and the
+  optional-slot marker in `#id: Ident?` as an operator.
+
 ## 0.2.2
 
 Documents the real cause of the `cannot write` failure, and says so in the panel.

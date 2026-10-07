@@ -628,14 +628,57 @@ macro @judge_color(#target: Player, #red: stmt, #black: stmt, #none: stmt) {
   | --- | --- |
   | 基础类别 | `expr`（默认）、`stmt`、`type`、`expr[]` |
   | 语义插槽 | `callExpr`（调用片段）、`safeCallExpr`（安全调用片段） |
-  | **AST 节点种类** | `ident` `numLit` `strLit` `binary` `call` `member` `arrayLit` `ifStmt` `block` … |
+  | **AST 节点种类** | `Ident` `Num` `Str` `ObjectLit` `Binary` `Call` `Block` `If` … |
 
-  **大部分安全的 AST 节点都能直接当插槽类型用**，例如 `#cond: compare` 只接受比较表达式、
-  `#b: block` 只接受块、`#lit: strLit` 只接受字符串字面量。传错会报 `MAC015` 并指出实际节点种类。
+  **大部分安全的 AST 节点都能直接当插槽类型用**，例如 `#cond: Compare` 只接受比较表达式、
+  `#b: Block` 只接受块、`#lit: Str` 只接受字符串字面量。传错会报 `MAC015` 并指出实际节点种类。
+  类型名不区分大小写的时代已经结束：**名字就是 AST 节点种类名，严格大小写敏感**，
+  旧写法（`strLit`、`ident`、`objectLit`…）现在报 `MAC015` 并给出正确拼写。
   完整的名字表、以及哪些宏模板内部节点被刻意排除在外，见
   [`ast-nodes.md`](ast-nodes.md)。
 
 - 宏体本身也必须符合 shya 语法。
+
+#### 可选插槽 `#名字: 类型?`
+
+类型后面多一个 `?`，这个插槽就**可以省略**：
+
+```shya
+macro @skill(#id: Ident?, #translation: Str?, #trigger: ObjectLit?, #content: stmt) {
+  #id = {
+    translation: #translation,
+    trigger: #trigger,
+  }
+  #content
+}
+
+@skill {
+  #translation: "翻译"
+  #content: console log("ok")
+}
+// #id 与 #trigger 都没传 —— 两条引用都编译成空节点，
+// `#id = {...}` 整条赋值不产出，只剩 console.log("ok")
+```
+
+- 省略时必须**没有实参**（`#trigger:` 后面什么都不写，或整项不写）；写 `_` 也算省略。
+  `stmt` 槽本来就可以省略，不需要 `?`。
+- `...` 不定项插槽不能加 `?`。
+- 省略的插槽绑定成**空节点**，根据出现的位置有三档：
+  1. 整条只用到它的语句（典型是 `#id = { … }`）**整条不产出**，不会留下非法的空基址；
+  2. 单独成句的引用（`#content`）也不产出，不会变成一句多余的 `undefined;`；
+  3. 必须出现在表达式里时变成 **`undefined`**——`"what=" + #what` → `"what=" + undefined`、
+     `[#what]` → `[undefined]`、`{ value: #what }` → `{ value: undefined }`，
+     因为表达式里留个空洞是语法错误。
+- 没写 `?` 的插槽缺实参仍然报 `MAC016`。
+
+写法上 `?` 只属于**参数声明**：宏模板里的 `?#slot`（强制可选链）与后缀安全调用
+`f?(...)` 不受影响，两者可以同时出现（`#x: Call?` 配 `?#x` 是合法组合）。
+
+#### 插槽类型名 = AST 节点种类名（大小写敏感）
+
+上表第三类**就是 `shya ast` 与 `MAC015` 诊断里印出来的节点种类名**，严格区分大小写：
+`Str` 是字符串字面量、`Ident` 是标识符、`ObjectLit` 是对象字面量。
+完整的名字表见 [`ast-nodes.md`](ast-nodes.md)。
 
 ### 6.2 调用形式
 
@@ -652,12 +695,17 @@ macro @judge_color(#target: Player, #red: stmt, #black: stmt, #none: stmt) {
 ```shya
 @share(player nextSeat, _p, recover(2), draw(2))
 player nextSeat @share _p recover(2) draw(2)    // 两种写法等价
-// 三个参数： Member(player,nextSeat) / Ident(_p) / Call(recover) / Call(draw)
+// 四个参数： Member(player,nextSeat) / Ident(_p) / Call(recover) / Call(draw)
 ```
 
 要传复杂表达式请用括号形式 `@macro(a + b)`。
 
 具名插槽的 `#y:` / `#n:` 在 `@when` 中另有含义（见下）。
+
+**具名插槽的值在表达式位置是「表达式」**：`#name: "x"` 里的 `"x"` 是一条表达式语句，
+展开到表达式位置（对象字面量、实参）时取的就是这个表达式本身，不会变成 `{ "x"; }`。
+值里写了真正的语句（`#filter: return ...`）而插槽又在表达式位置，才会报 `MAC013`。
+孤立的 `{}`（如 `#trigger: {}`）在表达式位置是**空对象字面量**。
 
 ### 6.3 系统宏
 

@@ -1,0 +1,49 @@
+// `#name: Type?` 可选插槽：省略时是空节点，整条用到它的赋值不产出；
+// 具名插槽 `#name: value` 在表达式位置取其中的表达式，孤立 `{}` 是空对象；
+// 省略的插槽一旦必须出现在表达式里（拼接、数组、对象属性），就变成 undefined。
+// 见 docs/decisions.md「H. 可选插槽与具名插槽的表达式语义」。
+
+macro @skill(#id: Ident?, #translation: Str?, #trigger: ObjectLit?, #filter: stmt) {
+  #id = {
+    translation: #translation,
+    trigger: #trigger,
+  }
+  #filter
+}
+
+macro @named(#name: Ident, #val: Str) {
+  #name = { v: #val }
+}
+
+macro @echo(#what: Str?) {
+  console log("what=" + #what)
+  console log([#what])
+  console log({ value: #what })
+}
+
+@skill {
+  #translation: "翻译"
+  #filter: console log("filter ran")
+}
+
+@skill {
+  #id: stdqingjiao
+  #translation: ""
+  #trigger: {}
+  #filter: console log("with id")
+}
+
+@named {
+  #name: hello
+  #val: "x"
+}
+
+@echo {
+  #what: "given"
+}
+
+@echo {
+}
+
+console log("done")
+

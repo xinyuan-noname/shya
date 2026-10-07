@@ -378,7 +378,7 @@ import { @unique, @clamp, @str, @repr } from "../../lib/pystd.shya"
 **具名导入会自动带上被依赖的宏。** `@assertAny` 的模板体用到了 `@any`：
 
 ```shya
-macro @assertAny(#seq, #message: strLit) {
+macro @assertAny(#seq, #message: Str) {
   if (@any(#seq)) {
     console log("通过：" + #message)
   } else {
@@ -388,7 +388,7 @@ macro @assertAny(#seq, #message: strLit) {
 ```
 
 所以只写 `import { @assertAny } from "../../lib/pystd.shya"` 就够了，`@any` 会自动注册。
-两点注意：`#message: strLit` 要求**字符串字面量**，传变量报
+两点注意：`#message: Str` 要求**字符串字面量**，传变量报
 `` 宏 `@assertAny` 的参数 `#message` 需要 AST 节点 `strLit`，但传入的是 `Ident` [MAC015] ``；
 而它们展开成 `console.log`，**不是真的断言**，失败不会中断程序。
 

@@ -95,13 +95,13 @@ v2 只做了三类改动：
 - **现在**：**大部分安全的 AST 节点种类都能直接当插槽类型用**，一共 40+ 个名字：
 
   ```shya
-  macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) { if #cond { #yes } else { #no } }
-  macro @echoLit(#x: strLit) { console log("literal is " + #x) }
-  macro @inBlock(#b: block) { console log("start")  #b  console log("end") }
+  macro @swapIf(#cond: Compare, #yes: stmt, #no: stmt) { if #cond { #yes } else { #no } }
+  macro @echoLit(#x: Str) { console log("literal is " + #x) }
+  macro @inBlock(#b: Block) { console log("start")  #b  console log("end") }
   ```
 
   传错会给出精确诊断：`宏 `@swapIf` 的参数 `#cond` 需要 AST 节点 `compare`，但传入的是 `Num` [MAC015]`。
-  `@when` 的判定同样支持节点种类：`@when(#x is binary)`、`@when(#x is call)`、`@when(#x is strLit)`。
+  `@when` 的判定同样支持节点种类：`@when(#x is Binary)`、`@when(#x is Call)`、`@when(#x is Str)`。
 
   宏模板的内部节点（`when` / `whenArm` / `each` / `slotRef` / `macroDecl` / `program` /
   `empty` / `optionalize` / `typeRef`）**刻意不能**作为插槽类型——把它们替换进模板会改写模板自身。

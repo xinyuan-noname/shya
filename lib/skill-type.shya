@@ -1,0 +1,12 @@
+macro @skill_trigger(#id:Ident?,#translation:Str?,#description:Str?,#trigger:ObjectLit?,#filter:stmt,#content:stmt) {
+  #id = {
+
+    translation:#translation,
+    description:#description,
+  }
+}
+hello @skill_trigger{
+    #trigger:{}
+    #translation:""
+    #description:""
+}

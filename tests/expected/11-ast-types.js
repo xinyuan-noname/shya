@@ -23,9 +23,7 @@ function main() {
   console.log("  -> @ts block");
   console.log("  -> identifier");
   console.log("block start");
-  {
-    console.log("  inside the block");
-  }
+  console.log("  inside the block");
   console.log("block end");
   console.log("literal is " + "hello");
 }

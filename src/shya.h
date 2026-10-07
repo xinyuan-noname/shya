@@ -337,6 +337,7 @@ struct MacroDef {
     std::vector<std::string> paramTypeNames;  // as written, for diagnostics
     std::vector<std::vector<NK>> paramKinds;  // exact AST kinds required (empty = any)
     std::vector<bool> variadic;
+    std::vector<bool> optional;  // `#name: Type?` - the slot may be omitted
     std::vector<NodePtr> body;  // template statements
     bool system = false;
     Pos pos;

@@ -408,7 +408,7 @@ shya 只有 `void`：`null` 已从语言中移除，请改写为 `void` [LEX009]
 
 设计稿只给了 `stmt, expr, type` 与 `...#slots:callExpr`，v2 把"插槽类型"扩到
 **42 种 AST 节点种类**（`macro.cpp` 的 `astKindTable()`，完整表见架构文档 5.7）。于是
-`macro @swapIf(#cond: compare, #yes: stmt)` 可以要求第一个实参必须是比较节点，不符报
+`macro @swapIf(#cond: Compare, #yes: stmt)` 可以要求第一个实参必须是比较节点，不符报
 `MAC015`：
 
 ```
@@ -417,7 +417,7 @@ shya 只有 `void`：`null` 已从语言中移除，请改写为 `void` [LEX009]
 
 - **字面量节点为什么要叫 `numLit`/`strLit`/`boolLit`/`voidLit`/`tplLit`**：`number`、
   `string`、`boolean`、`void` 这些名字在 `@when` 的判定里**已经被值类型占用了**
-  （`@when(#x is number)` 是静态类型判定，`@when(#x is strLit)` 才是节点判定）。
+  （`@when(#x is number)` 是静态类型判定，`@when(#x is Str)` 才是节点判定）。
   如果节点名也叫 `number`，`@when(#x is number)` 就会有歧义——而判定顺序是
   槽类型名 → **值类型名** → 节点种类名，值类型那一层先命中，节点判定永远轮不到。
   加 `Lit` 后缀是让两个命名空间不撞名的唯一办法（`boolLit`/`voidLit` 同理，
@@ -432,16 +432,17 @@ shya 只有 `void`：`null` 已从语言中移除，请改写为 `void` [LEX009]
   （`array/string/number/boolean/object/map/set/fn/void/unknown`），最后才查
   `astKindsForTypeName()`；命中节点表就返回确定的 `True`/`False`（不再是 `Unknown`），
   两者都不命中才 `Unknown`，而 `Unknown` 不选任何分支。保持三值的原因是：
-  "这个实参不是 `binary`"和"我不知道它是什么"必须区分开，否则 `@when(#x is binary)`
+  "这个实参不是 `binary`"和"我不知道它是什么"必须区分开，否则 `@when(#x is Binary)`
   会对着一个未知实参误判成 `False` 而静默走掉。
-- 表里唯一的"死角"是 `rangeExpr`：`astKindTable()` 里有 `{"rangeExpr", {NK::RangeExpr}}`，
-  但 `slotTypeFromName("rangeExpr")` **先**把它认成 `SlotType::RangeExpr`，`@when` 的槽类型
-  分支也排在节点分支之前。更彻底的是，`parseRangeOrExpr(allowRange)` 只在 `allowRange`
-  为真时建 `NK::RangeExpr`，而 `parseMacroApply()` 只在宏名**字面上是 `range`** 时传
-  `true`（`@probe(1:5)` 实测直接报 `SYN001`/`SYN015`）。所以 `#x: rangeExpr` 这个写法既
-  拿不到节点判定、也永远收不到范围实参——节点表里那一条实际不可达，只是留着当文档。
-- 依据：`tests/cases/11-ast-types.shya`（`compare`/`strLit`/`block` 正常路径）、
-  `tests/expected/11-ast-types.js`（`@kindOf` 的分支各命中一次）。
+- 表里唯一的"死角"是 `rangeExpr`：**槽类型** `rangeExpr` 由 `slotTypeFromName("rangeExpr")`
+  抢先认成 `SlotType::RangeExpr`，`@when` 的槽类型分支也排在**节点种类** `RangeExpr` 之前。
+  更彻底的是，`parseRangeOrExpr(allowRange)` 只在 `allowRange` 为真时建 `NK::RangeExpr`，
+  而 `parseMacroApply()` 只在宏名**字面上是 `range`** 时传 `true`（`@probe(1:5)` 实测直接报
+  `SYN001`/`SYN015`）。所以 `#x: rangeExpr` 这个写法既拿不到节点判定、也永远收不到范围实参
+  ——节点表里 `RangeExpr` 那一条实际不可达，只是留着当文档。
+- 依据：`tests/cases/11-ast-types.shya`（`Compare`/`Str`/`Block` 正常路径）、
+  `tests/expected/11-ast-types.js`（`@kindOf` 的分支各命中一次）、
+  `tests/cases/16-type-name-case.shya`（旧名报 `MAC015`）。
 
 ### G5. 其它已落地的小决策（**补齐 / 修正**）
 
@@ -483,3 +484,97 @@ shya 只有 `void`：`null` 已从语言中移除，请改写为 `void` [LEX009]
   `@when(#x is callExpr)` 这类兜底时悄悄错选）。现在 `evalWhen()` 用
   `NodePtr rhs = n->b ? n->b : (n->list.empty() ? nullptr : n->list[0]);` 兼容两处，
   同时 `instExpr` 也会搬运 `b` 与 `list` 并复制 `names`。
+
+## H. 可选插槽与具名插槽的表达式语义（**补齐**）
+
+### H1. `#名字: 类型?` —— 可省略的插槽（**补齐**）
+
+设计稿只说了「变量需标注语句类型或表达式类型 … 否则默认为 expr」，没写插槽能不能省略。
+实现此前的口径是：**只有 `stmt` 槽可以整个缺省**（B6），其它槽缺实参一律 `MAC016`。
+现在多了 `?` 标记：`#名字: 类型?`（**类型后面的 `?`**）表示该插槽可省略。
+
+- 解析：`Parser::parseTypeAnnotation()` 的 postfix 循环本来就会吃掉 `?`（用于
+  `T?` 可选类型的写法），所以 `"Ident?"` 原样进 `typeAnns`；`registerMacroFromDecl()` /
+  `installStdlib()` 在建立 `MacroDef` 时**去掉尾部的 `?`** 并置 `MacroDef::optional[i]`。
+  因此 `?` 不会污染类型名查表（`slotTypeFromName("Ident?")` 这种错误情况根本不会发生），
+  也不需要新增诊断码。
+- `?` 只属于**参数声明**这一层：宏模板里的 `?#slot`（`NK::Optionalize` 前缀）与后缀安全调用
+  `f?(...)` 都不受影响，两者可共存（`#x: Call?` 配 `?#x`）。
+- 缺省语义：`bindArguments()` 对 optional 槽**不建立绑定**，于是 `instIsNil()` 视其为空
+  （`SlotRef` 查不到绑定 → `false`，查到了且 `nil` → `true`）；写 `_` 也走同一条路。
+  `...` 变参槽不允许带 `?`（变参本来就吃光剩余实参）。
+- "编译后为空节点"落地的位置按**三种位置**分档：
+  1. `instStmts()` 的 `Assign` 分支在**所有 target 都为空**时整条 `break`，
+     `#id = { … }` 不会留下非法的 ` = { … }`；
+  2. `instStmts()` 的 `ExprStmt` 分支在表达式展开成空节点或 `Void` 时也 `break`，
+     单独成句的 `#content` 不会变成一句多余的 `undefined;`；
+  3. 必须留在表达式里时（拼接、数组元素、对象属性值）用 `makeUndef()`（`NK::Void`）补成
+     **`undefined`**——`"what=" + #what` → `+ undefined`、`[#what]` → `[undefined]`、
+     `{ value: #what }` → `{ value: undefined }`，因为表达式里留空洞是语法错误。
+     兜底在 `Codegen::genExprP`：`NK::Empty` 现在也印成 `undefined`，不再是空字符串。
+- 这解决了 B8 记下的老问题：那个「空基址」以前只能靠 `@safe` 绕开，现在可选插槽直接可用。
+- 依据：`tests/cases/17-optional-slots.shya`（省略 `#id` 时只剩 `console log`，
+  传了 `#id` 时正常生成 `const stdqingjiao = …`；`@echo` 的三种位置分别是
+  `+ undefined`、`[undefined]`、`{ value: undefined }`）、`docs/shya-language-reference.md` 6.1。
+
+### H2. 具名插槽的值在表达式位置是表达式（**修正**）
+
+以前的痛点：`#名字: 值` 在语法上是一个**语句块**（`Parser::parseMacroApply()` 里
+`isNamedSlotBlock()` 那条路径会 `parseStatement()` 出 `NK::Block`），而 `instExpr()` 的
+`default` 分支把不认识的模板节点**整体 clone**，于是块被原样搬进表达式位置：
+
+```shya
+macro @m(#val: Str) { console log("literal is " + #val) }
+@m { #val: "x" }        // 以前生成 `console.log("literal is " + { "x"; })` —— 非法 JS
+```
+
+现在的规则（三档，都在 `instBlockExpr()` 里）：
+
+1. 值里**只有一条表达式语句** → 取那条表达式；`#val: "x"` 就是 `"x"`。
+2. 值里**空空如也**（`#trigger:` 后面什么都不写、或只有空语句）→ `undefined`（见 H1 第三档），
+   于是「没填」在表达式里也是合法的 `{ trigger: undefined }`，而不是留下 `trigger: ,`；
+   孤立的 `{}`（`#trigger: {}`）在表达式位置是**空对象字面量**，因为 `{}` 写在表达式位置
+   本来就该读成对象。
+3. 值里是**真正的语句**（`return`、多条语句）而槽又落在表达式位置 → `MAC013`
+   （"具名插槽的值包含语句，只能用在语句位置"）。
+
+- 语句位置的一切照旧：`#red: console log("红")` 仍然是语句，`case` 分支里的花括号
+  不再出现（以前那条块会把分支体包成 `{ … }`）；`instBlockExpr()` 只在表达式路径生效。
+- `SlotRef` 的展开改成**递归走 `instExpr()`**（而不是 `cloneNodePublic`），块才有机会按上面
+  三档处理；`InstCtx::expanding` 记录正在展开的绑定节点，`#a: @m { #a: x }` 这类自引用会报
+  `MAC012` 而不是无限递归。
+- **位置参数与可选槽**：位置实参（后缀 target 排第一）仍按声明顺序填"没被具名占掉"的槽，
+  可选槽也在其中。所以 `world @skill { #id: … #translation: … }` 里的 `world` 会落到
+  `#description`（第一个空位）而不是被忽略——要只填具名槽就写 `_ @skill { … }`
+  （H1 的占位写法），别留下一个会顶到可选槽的 target。
+- 顺带修了 `Codegen` 的空对象：`{}` 以前印成 `{  }`（两个字面量空格），现在是 `{}`。
+- 依据：`tests/cases/17-optional-slots.shya`、`tests/expected/02-macros.js`
+  （具名插槽语句块不再多包一层花括号）。
+
+### H3. 插槽类型名 = AST 节点种类名，且大小写敏感（**修正**）
+
+v2 给 AST 节点种类单独发明了一套拼写（`numLit` / `strLit` / `ident` / `compare` /
+`block` / `ifStmt` …，G4）。实际用起来这套拼写有三个问题：与 `shya ast` 和 `MAC015`
+诊断里印出的**节点种类名**（`Num` / `Str` / `Ident` / `Compare` / `Block` / `If`）不是同一套，
+两边对不上；`strLit` 这种名字容易被读成"字符串类型"；而且 `astKindsForTypeName()` 是**严格
+区分大小写**的字符串比较，写错大小写会**静默**退化成"未知类型"（不检查、不报错）。
+
+现在的口径：
+
+- 类型名统一用**节点种类名**：`Num` `MathConst` `Str` `Tpl` `Bool` `Void` `Ident`
+  `ArrayLit` `ObjectLit` `Prop` `Unary` `Binary` `Compare` `Ternary` `Call` `Member`
+  `Index` `Spread` `Await` `MacroApply` `TsRaw` `RangeExpr` `Assign` `Decl` `IncDec`
+  `If` `Case` `CaseArm` `ForWhile` `ForOf` `ForRange` `FnDecl` `Return` `Throw` `Try`
+  `Break` `Continue` `Import` `Export` `Block` `Declare` `ExprStmt`（共 42 个，
+  与 `nodeKindName()` 完全一致）。
+- 匹配**大小写敏感**，旧名一律报 `MAC015`：`astKindSpellingMismatch()` 用一张
+  `astKindAliasTable()`（旧名 → 新名）加一次小写比对，把 `strLit`、`objectLit`、`whenstmt`
+  这类拼写翻译成"应写作 `Str` / `ObjectLit`"的提示。绑定参数时（`bindOne`）在
+  `want == SlotType::Unknown` 分支里查这张表，因此**报错发生在有实参的时候**。
+- 基础类别 `expr` / `stmt` / `type` / `expr[]` 与语义插槽 `callExpr` / `safeCallExpr`
+  **不变**；`@when(#x is X)` 的判定顺序也不变，只是第三段现在用节点种类名
+  （`@when(#x is Binary)`）。
+- 连带更新：`lib/pystd.shya`（`#message: Str`）、`tests/cases/11-ast-types.shya`、
+  `examples/tour.shya`、`docs/ast-nodes.md` 的全表与 4.1 节、`docs/shya-language-reference.md`。
+- 依据：`tests/cases/16-type-name-case.shya` +
+  `tests/expected/16-type-name-case.err`（`strLit` 报 MAC015，提示 `Str`）。

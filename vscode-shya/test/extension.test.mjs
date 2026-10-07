@@ -38,6 +38,7 @@ const state = {
   diagnostics: new Map(),
   panels: [],
   formattingProviders: [],
+  completionProviders: [],
   commands: {},
   listeners: {},
 };
@@ -188,6 +189,10 @@ const vscode = {
       state.formattingProviders.push({ language, provider });
       return { dispose() {} };
     },
+    registerCompletionItemProvider(language, provider, ...triggers) {
+      state.completionProviders.push({ language, provider, triggers });
+      return { dispose() {} };
+    },
   },
   commands: {
     registerCommand(id, handler) {
@@ -225,6 +230,29 @@ const vscode = {
       this.range = range;
       this.message = message;
       this.severity = severity;
+    }
+  },
+  CompletionItem: class CompletionItem {
+    constructor(label, kind) {
+      this.label = label;
+      this.kind = kind;
+    }
+  },
+  CompletionItemKind: {
+    Text: 0, Method: 1, Function: 2, Constructor: 3, Field: 4, Variable: 5, Class: 6,
+    Interface: 7, Module: 8, Property: 9, Unit: 10, Value: 11, Enum: 12, Keyword: 13,
+    Snippet: 14, Color: 15, File: 16, Reference: 17, Folder: 18, EnumMember: 19,
+    Constant: 20, Struct: 21, Event: 22, Operator: 23, TypeParameter: 24,
+  },
+  CompletionList: class CompletionList {
+    constructor(items, isIncomplete) {
+      this.items = items;
+      this.isIncomplete = isIncomplete;
+    }
+  },
+  MarkdownString: class MarkdownString {
+    constructor(value) {
+      this.value = value;
     }
   },
 };
@@ -343,6 +371,37 @@ eq("registers a formatting provider for shya", state.formattingProviders.map((p)
 
   const clean = makeDocument("fn f() {\n  let x = 1\n}\n");
   eq("formatter provider is a no-op on formatted input", provider.provideDocumentFormattingEdits(clean).length, 0);
+}
+
+/* --- slot-type completion in a macro header --- */
+
+{
+  eq("registers a completion provider for shya", state.completionProviders.map((p) => p.language), ["shya"]);
+  eq("completion trigger characters", state.completionProviders[0].triggers, [":", " "]);
+
+  const provider = state.completionProviders[0].provider;
+  const complete = (line) => {
+    const doc = makeDocument(line + "\n");
+    const position = new vscode.Position(0, line.length);
+    const result = provider.provideCompletionItems(doc, position);
+    if (!result) return [];
+    const items = Array.isArray(result) ? result : result.items;
+    return items.map((i) => i.label);
+  };
+
+  const afterColon = complete("macro @m(#x: ");
+  ok("completes AST node kinds after `#slot:`", afterColon.includes("ObjectLit") && afterColon.includes("Str"), afterColon.join(","));
+  ok("completes the base slot categories", afterColon.includes("stmt") && afterColon.includes("expr[]"), afterColon.join(","));
+  ok("offers the optional marker", afterColon.includes("?"), afterColon.join(","));
+  const strItems = complete("macro @m(#x: str");
+  ok("teaches a legacy spelling only when typed", afterColon.includes("strLit") === false && strItems.includes("strLit"), JSON.stringify(strItems));
+
+  const partial = complete("macro @m(#x: Obj");
+  ok("filters by the typed prefix", partial.includes("ObjectLit") && !partial.includes("Str"), partial.join(","));
+
+  eq("no completion outside a macro header", complete("let x: Obj"), []);
+  eq("no completion in the macro body", complete("macro @m(#x: expr) {"), []);
+  eq("no completion inside a plain call", complete("console log("), []);
 }
 
 /* --- shya.compile: exact invocation --- */

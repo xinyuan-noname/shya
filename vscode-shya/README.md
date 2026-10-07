@@ -9,6 +9,7 @@ ES2026 JavaScript.
 | --- | --- |
 | Syntax highlighting | TextMate grammar (`source.shya`) covering the whole surface syntax |
 | Snippets | `fn`, `afn`, `macro`, `when`, `each`, `share`, `safe`, `for`, `forin`, `range`, `case`, `ifelse`, `declare`, `try`, `import`, `tsblock` |
+| Slot-type completion | In a macro header (`macro @m(#x: …)`), after `:`
 | Bracket matching & auto-closing | `{}`, `[]`, `()`, `""`, `''`, `` `` ``, `/* */` |
 | Folding | `{` … `}`, `(` … `)`, plus `// region` / `// endregion` markers |
 | Indentation | Increases after an unclosed `{` or `(`, decreases on `}` / `)` |
@@ -53,6 +54,15 @@ slot references `#name` and named slot labels `#name:`; the operators `~/ +/ -/ 
 
 `~/` — the truncating-division operator — is matched *before* the math literals, so it is
 never highlighted as `~` + `/`.
+
+### Slot types
+
+Slot types are the AST node kinds (`Str`, `ObjectLit`, `Compare`, `Block`, `If`, …) plus the
+base categories `expr`, `stmt`, `type`, `expr[]`, `callExpr`, `safeCallExpr`. They are
+**case sensitive** — `Str` is the type, `strLit` is the pre-1.0 spelling the compiler rejects
+with `MAC015`. The grammar highlights node kinds as `support.type.ast-node.shya` and the
+optional-slot `?` (`#id: Ident?`) as an operator, and typing after `#slot:` in a macro header
+completes the whole list (the legacy spellings are suggested back with the correct name).
 
 ## Install
 

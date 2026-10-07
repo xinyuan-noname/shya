@@ -1,9 +1,9 @@
 {
   "name": "shya",
   "displayName": "shya",
-  "description": "Language support for shya, a strongly-typed DSL that compiles to ES2026 JavaScript: syntax highlighting, snippets, a formatter, a combined format-and-preview command and a compile command.",
+  "description": "Language support for shya, a strongly-typed DSL that compiles to ES2026 JavaScript: syntax highlighting, slot-type completion, snippets, a formatter, a combined format-and-preview command and a compile command.",
   "publisher": "xinyuan-noname",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"

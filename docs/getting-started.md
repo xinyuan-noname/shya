@@ -324,7 +324,7 @@ main()
 ### 6.3 插槽类型（传错了会被拦住）
 
 ```shya
-macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
+macro @swapIf(#cond: Compare, #yes: stmt, #no: stmt) {
   if #cond {
     #yes
   } else {
@@ -332,7 +332,7 @@ macro @swapIf(#cond: compare, #yes: stmt, #no: stmt) {
   }
 }
 
-macro @echoLit(#x: strLit) {
+macro @echoLit(#x: Str) {
   console log("字面量是 " + #x)
 }
 
@@ -344,7 +344,7 @@ fn main() {
 main()
 ```
 
-`#cond: compare` 要求实参必须是比较表达式；传 `1` 会报：
+`#cond: Compare` 要求实参必须是比较表达式；传 `1` 会报：
 
 ```
 error: 宏 `@swapIf` 的参数 `#cond` 需要 AST 节点 `compare`，但传入的是 `Num` [MAC015]

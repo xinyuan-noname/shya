@@ -10,7 +10,8 @@
  *
  * The preview panel shows the generated JavaScript and the compiler's diagnostics, and
  * refreshes while you type. The formatter is registered as a document formatting provider
- * as well, so Shift+Alt+F works.
+ * as well, so Shift+Alt+F works. Macro slot types are completed (and diagnosed) in a
+ * macro header.
  */
 
 const vscode = require("vscode");
@@ -19,6 +20,7 @@ const fs = require("fs");
 const os = require("os");
 const cp = require("child_process");
 const formatter = require("./formatter");
+const { BASE_SLOT_TYPES, AST_SLOT_TYPES, LEGACY_SLOT_TYPE_ALIASES } = require("./slot-types");
 
 /** @type {vscode.OutputChannel | undefined} */
 let channel;
@@ -539,6 +541,63 @@ function guard(label, fn) {
     });
 }
 
+/**
+ * True when `lineBefore` (the current line up to the caret) sits in a slot-type
+ * position: inside a `macro @name(...)` header, just past the `:` of a
+ * `#slot:` parameter.
+ *
+ * Deliberately textual: the extension has no parser, and a false positive is
+ * harmless (the suggested names are still valid syntax in that spot). Only the
+ * current line is examined, which is enough for a macro header.
+ */
+function slotTypeContext(lineBefore) {
+  const text = String(lineBefore || "");
+  if (!/^\s*macro\s+@/.test(text)) return false;
+  const open = text.lastIndexOf("(");
+  if (open === -1) return false;
+  const close = text.lastIndexOf(")");
+  if (close > open) return false;
+  const braces = text.lastIndexOf("{");
+  if (braces > open) return false;
+  return /(?:^|[(,])\s*(?:\.\.\.)?#[A-Za-z_$\u00A1-\uFFFF][\w$\u00A1-\uFFFF]*\s*:\s*[A-Za-z_$\u00A1-\uFFFF]*$/.test(
+    text,
+  );
+}
+
+/** Completion items for a slot-type position, filtered by what is typed. */
+function slotTypeCompletions(typed) {
+  const items = [];
+  const prefix = String(typed || "");
+  for (const base of BASE_SLOT_TYPES) {
+    if (prefix && !base.name.startsWith(prefix)) continue;
+    const item = new vscode.CompletionItem(base.name, vscode.CompletionItemKind.TypeParameter);
+    item.detail = "shya 基础插槽类别";
+    item.documentation = new vscode.MarkdownString(base.detail);
+    item.sortText = "0_" + base.name;
+    items.push(item);
+  }
+  for (const name of AST_SLOT_TYPES) {
+    if (prefix && !name.startsWith(prefix)) continue;
+    const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Class);
+    item.detail = "AST 节点种类（大小写敏感）";
+    item.documentation = new vscode.MarkdownString(
+      "只接受 `" + name + "` 节点；类型名就是 AST 节点种类名，**严格区分大小写**。",
+    );
+    item.sortText = "1_" + name;
+    items.push(item);
+  }
+  if (!prefix) {
+    const item = new vscode.CompletionItem("?", vscode.CompletionItemKind.Operator);
+    item.detail = "可选插槽";
+    item.documentation = new vscode.MarkdownString(
+      "`#名字: 类型?`：该插槽可以省略，省略时展开为空节点。",
+    );
+    item.sortText = "2_?";
+    items.push(item);
+  }
+  return items;
+}
+
 function activate(context) {
   diagnostics = vscode.languages.createDiagnosticCollection("shya");
 
@@ -561,6 +620,38 @@ function activate(context) {
     vscode.languages.registerDocumentFormattingEditProvider("shya", {
       provideDocumentFormattingEdits: (document) => formattingEdits(document),
     }),
+    vscode.languages.registerCompletionItemProvider(
+      "shya",
+      {
+        // Only fires in a macro header's slot-type position, so the suggestion
+        // list never drowns ordinary identifiers.
+        provideCompletionItems(document, position) {
+          const line = document.lineAt(position.line).text;
+          const typed = line.slice(0, position.character);
+          if (!slotTypeContext(typed)) return undefined;
+          const wordStart = /[A-Za-z_$\u00A1-\uFFFF][\w$\u00A1-\uFFFF]*$/.exec(typed);
+          const prefix = wordStart ? wordStart[0] : "";
+          const items = slotTypeCompletions(prefix);
+          // A lowercase legacy spelling would otherwise match nothing (type
+          // names are case sensitive), so suggest the old name with the fix.
+          if (prefix && !items.length) {
+            for (const [legacy, current] of Object.entries(LEGACY_SLOT_TYPE_ALIASES)) {
+              if (!legacy.startsWith(prefix)) continue;
+              const item = new vscode.CompletionItem(legacy, vscode.CompletionItemKind.Class);
+              item.detail = "旧名，已改名为 " + current;
+              item.documentation = new vscode.MarkdownString(
+                "`" + legacy + "` 大小写不匹配，编译器会报 MAC015：应写作 `" + current + "`。",
+              );
+              item.sortText = "9_" + legacy;
+              items.push(item);
+            }
+          }
+          return new vscode.CompletionList(items, false);
+        },
+      },
+      ":",
+      " ",
+    ),
     vscode.workspace.onDidChangeTextDocument((event) => scheduleRefresh(event.document)),
     vscode.workspace.onDidSaveTextDocument((document) => {
       if (preview && preview.uri.toString() === document.uri.toString()) {

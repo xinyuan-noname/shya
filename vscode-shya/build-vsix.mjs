@@ -260,6 +260,7 @@ const FILES = [
   "LICENSE",
   "out/extension.js",
   "out/formatter.js",
+  "out/slot-types.js",
   "syntaxes/shya.tmLanguage.json",
   "snippets/shya.json",
 ];
@@ -438,6 +439,7 @@ function main() {
     "extension/LICENSE",
     "extension/out/extension.js",
     "extension/out/formatter.js",
+    "extension/out/slot-types.js",
     "extension/syntaxes/shya.tmLanguage.json",
     "extension/snippets/shya.json",
     "[Content_Types].xml",

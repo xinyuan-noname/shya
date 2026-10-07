@@ -26,19 +26,13 @@ function main() {
   let card = player.judge();
   switch (card.getSuit()) {
     case "red":
-      {
-        console.log("红");
-      }
+      console.log("红");
       break;
     case "black":
-      {
-        console.log("黑");
-      }
+      console.log("黑");
       break;
     case "none":
-      {
-        console.log("无色");
-      }
+      console.log("无色");
       break;
   }
   card = player.judge();
@@ -54,13 +48,9 @@ function main() {
       break;
   }
   console.log("---");
-  {
-    console.log("no target needed");
-  }
+  console.log("no target needed");
   let p2 = makePlayer("q");
   console.log("who=" + p2.name);
-  {
-    console.log("named a");
-  }
+  console.log("named a");
 }
 main();

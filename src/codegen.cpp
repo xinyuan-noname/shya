@@ -334,7 +334,12 @@ Codegen::Rendered Codegen::genExprP(const NodePtr& n) {
     }
     switch (n->kind) {
         case NK::Empty:
-            r.text = "";
+        case NK::Void:
+            // `Void` is a written `undefined`; `Empty` is a slot that expanded
+            // to nothing but still had to render as an expression — a hole in
+            // `a + #optional` or `[#optional]` would be a syntax error, so it
+            // becomes the language's "no value" too.
+            r.text = "undefined";
             return r;
         case NK::Num:
         case NK::MathConst:
@@ -361,9 +366,6 @@ Codegen::Rendered Codegen::genExprP(const NodePtr& n) {
         case NK::Bool:
             r.text = n->flag ? "true" : "false";
             return r;
-        case NK::Void:
-            r.text = "undefined";
-            return r;
         case NK::Ident:
             r.text = (n->flag && n->text == "_") ? "" : n->text;
             return r;
@@ -378,6 +380,11 @@ Codegen::Rendered Codegen::genExprP(const NodePtr& n) {
             return r;
         }
         case NK::ObjectLit: {
+            // An empty object renders as `{}`, not `{  }`.
+            if (n->list.empty()) {
+                r.text = "{}";
+                return r;
+            }
             std::string s = "{ ";
             for (std::size_t i = 0; i < n->list.size(); ++i) {
                 if (i) s += ", ";

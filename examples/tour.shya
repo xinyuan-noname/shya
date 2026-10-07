@@ -26,7 +26,7 @@ declare Hero {
 declare fn hostCount(xs: array<string>): number
 
 // 宏：编译期展开，产物里看不到 @damage
-macro @damage(#who: ident, #n) {
+macro @damage(#who: Ident, #n) {
   #who hp = #who hp - #n
 }
 
