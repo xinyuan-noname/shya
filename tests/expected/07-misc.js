@@ -2,9 +2,11 @@
 // Target: ES2026. Do not edit by hand.
 
 const VERSION = "1.0";
+
 function greet(name, greeting = "你好") {
   return `${greeting}，${name}！`;
 }
+
 function rest(first, ...others) {
   let total = first;
   for (const v of others) {
@@ -12,10 +14,12 @@ function rest(first, ...others) {
   }
   return total;
 }
+
 async function fetchHp() {
   await new Promise((resolve) => setTimeout(resolve, 1));
   return 42;
 }
+
 function risky(flag) {
   try {
     if (flag) {
@@ -28,6 +32,7 @@ function risky(flag) {
     console.log("finally");
   }
 }
+
 function main() {
   console.log(greet("世界"));
   console.log(greet("shya", "hi"));
@@ -59,4 +64,5 @@ function main() {
   console.log(maybe?.getHp());
   console.log(maybe?.(1));
 }
+
 main();

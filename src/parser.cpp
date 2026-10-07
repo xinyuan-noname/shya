@@ -328,7 +328,7 @@ NodePtr Parser::parseFnDecl(bool isAsync, bool isExport) {
             take();
         }
         std::string ann;
-        if (acceptPunct(":")) ann = parseTypeAnnotation();
+        if (acceptPunct(":")) ann = parseParamAnnotation();
         NodePtr def;
         if (acceptPunct("=")) {
             // No comma expression here, otherwise a following parameter is eaten.
@@ -540,7 +540,7 @@ NodePtr Parser::parseDeclare() {
             std::string pname = check(Tok::Identifier) ? take().text : std::string();
             if (pname.empty()) errorHere("SYN004", "参数名无效");
             std::string ann;
-            if (acceptPunct(":")) ann = parseTypeAnnotation();
+            if (acceptPunct(":")) ann = parseParamAnnotation();
             NodePtr def;
             if (acceptPunct("=")) def = parseTernary();
             n->names.push_back(pname);
@@ -583,7 +583,7 @@ NodePtr Parser::parseDeclare() {
                 bool rest = acceptPunct("...");
                 std::string pname = check(Tok::Identifier) ? take().text : std::string();
                 std::string ann;
-                if (acceptPunct(":")) ann = parseTypeAnnotation();
+                if (acceptPunct(":")) ann = parseParamAnnotation();
                 NodePtr def;
                 if (acceptPunct("=")) def = parseTernary();
                 m->names.push_back(pname);
@@ -1231,7 +1231,11 @@ NodePtr Parser::parseObjectLit() {
         if (acceptPunct(":")) {
             prop->a = parseTernary();
         } else if (checkPunct("(")) {
-            // method shorthand: key(params) { body }
+            // Method shorthand is not part of the language: an object literal is a
+            // list of key/value pairs and nothing else.
+            bag_.error(prop->pos, "SYN031",
+                       "对象字面量只允许键值对，不支持方法简写；请写成 `" + prop->text +
+                           ": @ts{(…参数…) => { … }}`");
             auto fn = mk(NK::FnDecl, prop->pos);
             fn->text = prop->text;
             expectPunct("(", "方法参数");
@@ -1250,7 +1254,11 @@ NodePtr Parser::parseObjectLit() {
             if (checkPunct("{")) fn->list = parseBlock()->list;
             prop->a = fn;
         } else {
-            // shorthand { a } => { a: a }
+            // Shorthand `{ a }` is not part of the language either: the key and the
+            // value are always both written.
+            bag_.error(prop->pos, "SYN030",
+                       "对象字面量只允许键值对，不支持简写；请写成 `" + prop->text + ": " +
+                           prop->text + "`");
             auto id = mk(NK::Ident, prop->pos);
             id->text = prop->text;
             prop->a = id;
@@ -1727,6 +1735,19 @@ bool Parser::isTypeStart(const Token& t) const {
         return kw.count(t.text) > 0;
     }
     return false;
+}
+
+std::string Parser::parseParamAnnotation() {
+    // A parameter cannot be a function type: shya has no function values, so there is
+    // no way to pass one, and accepting the annotation would advertise a capability the
+    // language does not have.
+    Pos p = cur().pos;
+    std::string ann = parseTypeAnnotation();
+    if (ann == "fn") {
+        bag_.error(p, "SYN032",
+                   "参数类型不能是函数类型 `fn`：shya 不支持把函数作为参数传递（回调）");
+    }
+    return ann;
 }
 
 std::string Parser::parseTypeAnnotation() {

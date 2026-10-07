@@ -2,6 +2,7 @@
 // Target: ES2026. Do not edit by hand.
 
 let label = "shya";
+
 function describe(name, times) {
   let out = name;
   for (let i = 0; i < times; i += 1) {
@@ -9,6 +10,7 @@ function describe(name, times) {
   }
   return out;
 }
+
 function main() {
   console.log(describe(label, 3));
   console.log(100 + 100, 50);
@@ -54,4 +56,5 @@ function main() {
   console.log(Math.trunc(9 / 2), Math.ceil(9 / 2), Math.floor(9 / 2), Math.round(9 / 2), 2 ** 10, 7 % 3);
   console.log(undefined, typeof 1 === "number", Array.isArray(arr), typeof label === "string");
 }
+
 main();

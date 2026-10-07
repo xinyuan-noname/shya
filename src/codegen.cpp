@@ -279,7 +279,17 @@ std::string Codegen::genTsRaw(const NodePtr& n) {
     }
     // Collapse the indentation of multi-line raw blocks so they line up.
     std::string trimmed = trimTrailingNewline(out);
-    return trimmed;
+    // Mark the start of every physical line of the payload. The formatting stage
+    // re-indents and reflows the generated code, and this is how it knows which text is
+    // verbatim JavaScript the author wrote inside `@ts{ … }` and must not be touched.
+    std::string marked;
+    marked.reserve(trimmed.size() + 8);
+    marked.push_back(kRawMark);
+    for (char c : trimmed) {
+        marked.push_back(c);
+        if (c == '\n') marked.push_back(kRawMark);
+    }
+    return marked;
 }
 
 std::string Codegen::genFragment(const NodePtr& n, bool optional) {
@@ -493,13 +503,15 @@ Codegen::Rendered Codegen::genExprP(const NodePtr& n) {
                 r.text = genExpr(n->a, 11) + genFragment(n->b, n->flag2);
                 return r;
             }
-            if (fieldAccesses_ && fieldAccesses_->count(n.get())) {
-                // A `declare`d field is a plain property: `p.name`, not `p.name()`.
-                r.text = genExpr(n->a, 11) + "." + n->text;
-                return r;
-            }
+            // `x y` reads the property `x.y`; it is a call only when the member is a
+            // function with no required parameters, or when the parentheses were
+            // written explicitly (`n->flag` records that).
             std::string s = genExpr(n->a, 11) + "." + n->text;
-            s += "(" + genArguments(n->list) + ")";
+            const bool called =
+                n->flag || (implicitCallMembers_ && implicitCallMembers_->count(n.get()));
+            if (called) {
+                s += "(" + genArguments(n->list) + ")";
+            }
             r.text = s;
             return r;
         }
@@ -776,6 +788,16 @@ void Codegen::genStatement(const NodePtr& n) {
             }
             std::string e = genExpr(n->a, 0);
             if (e.empty()) return;
+            // A `@ts{ … }` payload is verbatim JavaScript: when it already ends with a
+            // semicolon, adding another one would produce `;;`.
+            if (n->a->kind == NK::TsRaw) {
+                std::string t = e;
+                while (!t.empty() && (t.back() == kRawMark || t.back() == ' ')) t.pop_back();
+                if (!t.empty() && t.back() == ';') {
+                    line(e);
+                    return;
+                }
+            }
             line(e + ";");
             return;
         }

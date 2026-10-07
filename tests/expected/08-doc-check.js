@@ -2,27 +2,33 @@
 // Target: ES2026. Do not edit by hand.
 
 let calls = 0;
+
 function tick() {
   calls = calls + 1;
   return 2;
 }
+
 function check(x) {
   console.log(x === undefined, typeof x === "object" && x !== null, typeof x === "function", typeof x === "number");
 }
+
 function pair() {
   let a = 1;
   let b = 2;
   [a, b] = [b, a];
   console.log(a, b);
 }
+
 function chain() {
   console.log(1 < 2 && 2 < 3);
   console.log(nextVal() < 2 && 2 < nextVal());
   console.log(((__shya_cmp1) => 1 < __shya_cmp1 && __shya_cmp1 < 5)(tick()), calls);
 }
+
 function nextVal() {
   return 1;
 }
+
 function main() {
   check(undefined);
   pair();
@@ -33,4 +39,5 @@ function main() {
     console.log(k, v);
   }
 }
+
 main();

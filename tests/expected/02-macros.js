@@ -13,6 +13,7 @@ function makePlayer(name) {
     say: (m) => { console.log("say " + m); return { say: (x) => console.log("say " + x) }; }
   });
 }
+
 function main() {
   let d = makePlayer("a");
   d?.say("hello")?.say("nice");
@@ -53,4 +54,5 @@ function main() {
   console.log("who=" + p2.name);
   console.log("named a");
 }
+
 main();

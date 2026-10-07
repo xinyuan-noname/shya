@@ -8,9 +8,11 @@ function probe(x) {
   console.log(!(typeof 3 === "string"), !(typeof 3 === "number"));
   console.log(1 < 2 && 2 < 3, 3 > 2 && 2 > 1, 1 < 2 && 2 > 3);
 }
+
 function main() {
   probe([1, 2]);
   probe(undefined);
   probe("s");
 }
+
 main();

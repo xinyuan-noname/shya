@@ -15,6 +15,7 @@ function makePlayer(name) {
     say: (m) => { console.log("say " + m); return makePlayer("other"); },
   };
 };
+
 function main() {
   let p = makePlayer("me");
   let opp = makePlayer("you");
@@ -35,4 +36,5 @@ function main() {
     console.log(who.name, who.hp);
   }
 }
+
 main();

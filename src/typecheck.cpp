@@ -781,7 +781,8 @@ TypePtr TypeChecker::checkNode(const NodePtr& n) {
                                      ": … }` 补充声明）");
                 }
                 if (mt) {
-                    if (mt->kind == TK::Fn) {                        int minArgs = mt->required < 0 ? static_cast<int>(mt->parts.size())
+                    if (mt->kind == TK::Fn) {
+                        int minArgs = mt->required < 0 ? static_cast<int>(mt->parts.size())
                                                        : mt->required;
                         int maxArgs = mt->variadic ? -1 : static_cast<int>(mt->parts.size());
                         int have = static_cast<int>(args.size());
@@ -806,10 +807,20 @@ TypePtr TypeChecker::checkNode(const NodePtr& n) {
                                             "方法 `" + n->text + "` 的第 " +
                                                 std::to_string(i + 1) + " 个实参");
                         }
+                        // A member that is a method is a call even with the parentheses
+                        // omitted (`p judge` -> `p.judge()`); a missing argument is
+                        // reported by the arity check above.
+                        if (!n->flag) implicitCallMembers_.insert(n.get());
                         result = mt->ret ? mt->ret : tUnknown();
                     } else {
-                        // A declared field is a real property, not a call.
-                        fieldAccesses_.insert(n.get());
+                        // A field is a property read: `p.hp`. Calling it is an error,
+                        // and it is not a call to omit parentheses from either.
+                        if (n->flag) {
+                            bag_.error(n->pos, "TC015",
+                                       "字段 `" + n->text +
+                                           "` 不是方法，不能调用（写成属性访问 `" + n->text +
+                                           "` 即可）");
+                        }
                         result = mt;
                     }
                 }

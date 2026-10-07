@@ -102,6 +102,7 @@ const char* kUsage =
     "  -o, --out <path>      output file (default: alongside the source, .mjs)\n"
     "  -I, --include <dir>   extra search root for `import \"*.shya\"` macro files\n"
     "  --no-typecheck        skip the type checker\n"
+    "  --no-format           leave the generated JavaScript laid out as generated\n"
     "  --keep-types          keep type annotations in the output\n"
     "  --warnings-as-errors  treat warnings as errors\n"
     "  -q, --quiet           only print errors\n";
@@ -184,7 +185,7 @@ CompileResult compileSource(const std::string& source, const std::string& filena
         CodegenOptions copt;
         copt.stripTypes = true;
         Codegen codegen(bag, copt);
-        codegen.setFieldAccesses(&checker.fieldAccesses());
+        codegen.setImplicitCallMembers(&checker.implicitCallMembers());
         result.code = codegen.generate(core, filename);
     } else {
         CodegenOptions copt;
@@ -192,6 +193,11 @@ CompileResult compileSource(const std::string& source, const std::string& filena
         Codegen codegen(bag, copt);
         result.code = codegen.generate(core, filename);
     }
+
+    // 7. formatting ---------------------------------------------------------
+    // The generator lays the code out; this stage decides the layout of the file as a
+    // whole. It only ever moves whitespace, and `@ts{ … }` payloads are left verbatim.
+    result.code = formatJavaScript(result.code, 2, !opt.noFormat);
 
     if (opt.warningsAsErrors) {
         for (const auto& d : bag.items()) {
@@ -239,7 +245,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (command == "version" || command == "--version" || command == "-v") {
-        std::puts("shya 1.0.1 (ES2026 backend)");
+        std::puts("shya 1.1.0 (ES2026 backend)");
         return 0;
     }
 
@@ -273,6 +279,8 @@ int main(int argc, char** argv) {
             opt.includePaths.push_back(args[++i]);
         } else if (a == "--no-typecheck") {
             opt.noTypecheck = true;
+        } else if (a == "--no-format") {
+            opt.noFormat = true;
         } else if (a == "--keep-types") {
             keepTypes = true;
         } else if (a == "--warnings-as-errors" || a == "-Werror") {

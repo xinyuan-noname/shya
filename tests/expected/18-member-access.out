@@ -1,0 +1,8 @@
+赵云 4
+red
+recover 2
+42
+3
+4
+3 { deep: [ 1, 2 ] } { speed: 3, 'max hp': 10, nested: { deep: [ 1, 2 ] } }
+{ ok: true }

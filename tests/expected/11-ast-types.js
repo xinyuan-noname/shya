@@ -27,4 +27,5 @@ function main() {
   console.log("block end");
   console.log("literal is " + "hello");
 }
+
 main();

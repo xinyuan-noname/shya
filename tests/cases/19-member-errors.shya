@@ -1,0 +1,20 @@
+// 成员访问的类型层错误
+declare Player {
+  hp: number
+  recover(n: number): void
+}
+
+fn main() {
+  let p: Player = @ts{globalThis.p}
+
+  // 字段不是方法，不能调用
+  console log(p hp())
+
+  // 方法省略括号但没有实参
+  p recover
+
+  // 未声明成员只是警告
+  console log(p missingMember)
+}
+
+main()

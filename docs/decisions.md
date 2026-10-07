@@ -278,11 +278,12 @@ any/unknown/never/range/rangeExpr/expr/stmt/type/callExpr/safeCallExpr` 等名�
 
 ## F. 设计稿内部的其余含糊之处
 
-- **"一切皆是函数，无参括号可省略"**：实现把它做成"成员访问永远发一次调用"——
-  `player getHp` → `player.getHp()`，`arr slice(1,3)` → `arr.slice(1, 3)`。
-  因此**默认没有属性读取**，想取属性只能走 `@ts`、`a[i]`，或先用 `declare` 把宿主字段
-  声明出来（G2：只有 `declare` 过的**字段**才会渲染成 `p.name`）；`hasSideEffects()` 据此
-  把 `Member` 一律视为有副作用。
+- **"一切皆是函数，无参括号可省略"**：v2 **反转**了最初的实现。现在 `x y` 默认是
+  **属性读取**（`player hp` → `player.hp`），`x y()` 是调用；只有当 `y` 被 `declare`
+  成「无必填参数的方法」时，`x y` 才编译成调用——这才是设计稿那句"无参括号可省略"
+  的真正含义（省略括号的前提是**类型上已知它是函数**）。类型未知时按属性处理。
+  反转的经过见 [G6](#g6-成员访问语义的反转修正)；`hasSideEffects()` 也随之不再把
+  `Member` 一律视为有副作用。
 - **`@keys` / `@values` / `@entries` 的语义**：实现照抄成 `Object.keys/values/entries`。
   设计稿同时说"你能像操作数组一样操作所有迭代器，最终仍为原始类型"——实现没有迭代器协议
   （产物里就是普通数组，`for … of` 是 JS 的 `for…of`），所以这句话只有"结果是数组"
@@ -340,14 +341,14 @@ shya 只有 `void`：`null` 已从语言中移除，请改写为 `void` [LEX009]
 
 设计稿只说"无法自定义类，但可以将标注类以对接游戏系统"，至于是**标注**一个类型名还是
 **声明**这个类型有什么成员，完全没写。v1 选了"只按名字比较"（`tNamed` + `TK::Class`，
-无结构），于是宿主给过来的字段一律被当成方法调用——"一切皆是函数"这条规则在宿主对象
-上直接失效。v2 引入 `declare`（`NK::Declare`）作为这条规则的**必要例外**：
+无结构），于是宿主给过来的字段一律被当成方法调用。v2 引入 `declare`（`NK::Declare`）
+让宿主对象的形状进入类型系统（成员访问的最终规则见 G6）：
 
 - **字段与方法的区分会改变代码生成**。`TypeChecker::memberType()` 查
-  `Type::fields` / `Type::methods`：命中**字段**时把这个 `NK::Member` 节点的指针记进
-  `fieldAccesses_`，`compileSource()` 再把它交给
-  `Codegen::setFieldAccesses(&checker.fieldAccesses())`；`genExprP` 的 `NK::Member` 分支
-  先查这个集合，命中就发 `p.name`（属性读取），未命中才发 `p.name(...)`（调用）。所以
+  `Type::fields` / `Type::methods`；成员是**函数**时把这个 `NK::Member` 节点的指针记进
+  `implicitCallMembers_`，`compileSource()` 再把它交给
+  `Codegen::setImplicitCallMembers(&checker.implicitCallMembers())`。`NK::Member` 分支
+  按「写了括号（`n->flag`）或在这个集合里」发调用，否则发 `p.name`（属性读取）。所以
   `declare Player { name: string  judge(): Card }` 之下 `p name` → `p.name`、
   `p judge` → `p.judge()`（`tests/expected/14-declare.js` 实证）。
 - **默认值只描述宿主契约，不注入调用点**。`declare fn draw(n: number = 1): void` 里的
@@ -578,3 +579,66 @@ v2 给 AST 节点种类单独发明了一套拼写（`numLit` / `strLit` / `iden
   `examples/tour.shya`、`docs/ast-nodes.md` 的全表与 4.1 节、`docs/shya-language-reference.md`。
 - 依据：`tests/cases/16-type-name-case.shya` +
   `tests/expected/16-type-name-case.err`（`strLit` 报 MAC015，提示 `Str`）。
+
+## H. v3 增补：成员访问、对象字面量、产物格式化
+
+### G6. 成员访问语义的反转（**修正**）
+
+v1/v2 把设计稿的"一切皆是函数"实现成**成员访问永远发一次调用**：`player hp` →
+`player.hp()`，只有 `declare` 过的字段才反过来读属性。这条规则被推翻了。
+
+**新规则**（成员访问只有并置一种写法；`. ` 不是运算符）：
+
+| 写法 | 结果 |
+| --- | --- |
+| `x y`，`y` 是字段 / 属性 | `x.y` |
+| `x y`，`y` 是**无必填参数**的方法 | `x.y()` |
+| `x y`，类型未知 | **`x.y`**（属性读取） |
+| `x y(…)` | `x.y(…)`（括号总是调用） |
+| `x y`，`y` 是方法但需要实参 | 报 `TC006` |
+| `x y()`，`y` 是字段 | 报 `TC015` |
+
+**为什么反转**：设计稿那句是"**因为本语言是强类型语言**，所以无参函数调用仍可以省略
+括号"——省略括号的前提是类型上**已经知道它是函数**。v1 把前提丢了，于是"省略"变成了
+"必然"，属性读取反而需要特例。新规则把这个前提放回原位：类型知道就调用，不知道就当属性。
+
+**实现**：`TypeChecker::implicitCallMembers_`（旧名 `fieldAccesses_`，语义正好相反）只登记
+「成员是函数且没写括号」的 `NK::Member` 节点；`Codegen` 的 `NK::Member` 分支按
+`n->flag || implicitCallMembers_.count(n)` 决定是否补 `()`。`n->flag` 是解析器在
+`parsePostfix` 里记下的「**写了括号**」，所以显式调用完全不需要类型信息。
+
+**影响**：`Member` 不再被 `hasSideEffects()` 一律视为有副作用；设计稿宏示例
+`player nextSeat @share …` 现在要求 `player` 有 `declare` 类型（用例 02 已补），
+否则 `nextSeat` 按属性读取，链就断了。
+
+- 依据：`tests/cases/18-member-access.shya`（行为）、
+  `tests/expected/19-member-errors.err`（`TC015` / `TC006` / `TC014`）。
+
+### G7. 对象字面量与回调的收紧（**补齐**）
+
+- **对象字面量只允许键值对**。键是标识符或字符串字面量；`{ a }` 报 `SYN030`、
+  `{ f() { … } }` 报 `SYN031`、`{ ...x }` / `{ [k]: 1 }` 报 `SYN013`。
+  v2 之前简写与方法简写是**静默接受**的（`{ a }` 会被改写成 `{ a: a }`），
+  那等于语言里有两套写法而文档只承认一套。
+- **参数类型不能是 `fn`**（`SYN032`）。语言没有函数值，接受这个标注等于承诺一个做不到的
+  能力。`declare fn` 与普通 `fn` 的参数位置都检查；返回值位置不检查（不涉及"传递"）。
+- **语句位置的 `{ … }` 仍然是块**，所以裸写 `{ a: 1 }` 当语句依旧是语法错误——
+  对象字面量只在表达式位置成立。
+- **键值对作为宏操作语言**：`Prop` 与 `ObjectLit` 早就在 `astKindTable()` 里，
+  本次没有改动，只补了文档与用例。
+
+### G8. 产物格式化阶段（**补齐**）
+
+代码生成之后新增一个独立阶段 `src/format.cpp`（`formatJavaScript()`），
+在 `compileSource()` 的第 7 步执行，可用 `--no-format` 关闭。
+
+它只动空白：顶层语句之间插空行、折叠多余空行与空语句 `;`、去行尾空白、
+修掉 `@ts` 载荷自带分号造成的 `;;`、文件末尾恰好一个换行。
+
+**安全约束是硬性的**：`@ts{ … }` 是作者写的原样 JavaScript，重排可能改变它的含义。
+做法是代码生成给原样载荷的**每一行**打上 `kRawMark`（`\x02`，`genTsRaw` 与
+`Statement` 的 `TsRaw` 分支都会带上），格式化阶段见到标记就整行原样输出。
+字符串与模板字符串不需要额外处理——它们在生成阶段已经是不可分的整体。
+
+- 依据：`tests/cases/*.shya` 的产物在本次改动后**去掉全部空白**与旧基准逐字节相同
+  （证明只改了版式），以及 `@ts` 载荷在 `--no-format` 与默认模式下逐字节一致。

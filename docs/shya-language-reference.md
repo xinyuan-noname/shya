@@ -267,10 +267,22 @@ player getHp is number
 1  1.5  0xff  1_000
 "text"  'text'  `模板 ${1}`
 true  false  void
-[1, 2, 3]                     // 数组
-{ x: 1, y: 2 }                // 对象
-{ a: 1, m(x) { return x } }   // 对象方法简写
+[1, 2, 3]                             // 数组
+{ x: 1, y: 2 }                        // 对象
+{ "带空格的键": 1, nested: { a: [] } }  // 字符串键与嵌套
 ```
+
+**对象字面量只允许键值对**，键是标识符或字符串字面量。以下形式会报错：
+
+| 写法 | 结果 |
+| --- | --- |
+| `{ a }`（简写） | `SYN030`，提示写成 `{ a: a }` |
+| `{ f() { … } }`（方法简写） | `SYN031` |
+| `{ ...x }`（展开） | `SYN013` |
+| `{ [k]: 1 }`（计算键） | `SYN013` |
+
+对象字面量只在**表达式位置**成立；语句开头的 `{` 一律是块，
+所以裸写 `{ a: 1 }` 当语句是语法错误（也没意义）。
 
 ### 4.2 运算符与优先级（低 → 高）
 
@@ -310,24 +322,51 @@ a < b <= c
 
 `==` **只有严格相等**一个含义，产物是 `===`。
 
-### 4.4 成员访问就是调用
+### 4.4 成员访问：`x y` 读属性，`x y()` 调用
 
-shya **没有属性这个概念，一切皆是函数**：不带参数的成员访问也会生成一次调用。
-
-```shya
-player getHp                       // player.getHp()
-player nextSeat nextSeat recover(2) // player.nextSeat().nextSeat().recover(2)
-array slice(0, -1) indexOf(5)      // array.slice(0, -1).indexOf(5)
-```
-
-需要真正的属性读取（如 `.length`）时使用标准库宏或 `@ts`：
+**`. ` 不是运算符**——shya 里没有点号成员访问。成员访问靠**并置**书写，
+它们分别读作"取属性"和"发调用"：
 
 ```shya
-arr @len          // arr.length
-bag @keys         // Object.keys(bag)
+player hp            // player.hp        —— 属性读取
+player judge()       // player.judge()   —— 函数调用
+arr length           // arr.length       —— 属性
+arr push(4)          // arr.push(4)      —— 调用
+map get("k")         // map.get("k")     —— 调用
 ```
 
-也可以用下标访问：`arr[0]`、`map[key]`。
+**括号总是意味着调用。** 反过来，省略括号时：
+
+| 成员是什么 | `x y` 编译成 |
+| --- | --- |
+| 属性 / 字段 | `x.y` |
+| **无必填参数**的方法 | `x.y()` |
+| 类型未知（没 `declare` 过、来自 `@ts` 等） | **`x.y`** —— 属性读取 |
+
+```shya
+declare Player {
+  hp: number            // 字段
+  judge(): Card         // 无必填参数的方法
+  recover(n: number): void
+}
+```
+
+```shya
+p hp            // p.hp              —— 字段，属性读取
+p judge         // p.judge()         —— 无参方法，省略括号仍是调用
+p judge()       // p.judge()         —— 等价写法
+p recover(2)    // p.recover(2)      —— 有参数，必须写括号
+p recover       // 报错 TC006：期望 1 个实参
+p hp()          // 报错 TC015：字段不是方法
+```
+
+所以**当你想要的是属性、却没有 `declare` 类型时，省略括号就是对的**；
+想让编译器把 `x y` 认成调用，就得让 `y` 有可查的类型（见 [5.11](#511-declare--声明外置宿主对象)）。
+
+也可以直接用下标访问：`arr[0]`、`map[key]`。
+
+> **函数不是一等公民**：shya 没有函数类型、没有函数字面量，也不能把函数作为
+> 参数传递（回调）。详见 [10. 已知限制](#10-已知限制)。
 
 ### 4.5 安全访问
 
@@ -561,10 +600,10 @@ declare Card {
 }
 
 declare Player {
-  name: string              // 字段：编译成属性读取
+  name: string              // 字段：`p name` 编译成属性读取 p.name
   hp: number
   hand: array<Card>
-  judge(): Card             // 方法：编译成函数调用
+  judge(): Card             // 方法：`p judge` 与 `p judge()` 都编译成调用
   recover(n: number): void
   say(msg: string): Player
   draw(n: number = 1): void
@@ -578,9 +617,11 @@ declare fn hostLog(msg: string, level?: number): void
 声明之后：
 
 - **字段**（`name: T`）读的是属性：`p name` 编译成 `p.name`；
-- **方法**（`judge(): T`）生成调用：`p judge` 编译成 `p.judge()`；
-- 成员类型参与检查：`p recover("oops")` 报 `TC003`；`hostRandom()` 报 `TC006`；
-- 访问未声明的成员是**警告** `TC014`，并给出补声明的位置；
+- **方法**（`judge(): T`）生成调用：`p judge` 与 `p judge()` 都编译成 `p.judge()`；
+- 成员类型参与检查：`p recover("oops")` 报 `TC003`；`p recover`（缺实参）报 `TC006`；
+  对字段写括号调用报 `TC015`；
+- 访问未声明的成员是**警告** `TC014`，并给出补声明的位置；它同时按属性读取处理；
+- **参数类型不能写成 `fn`**（`SYN032`）：语言不支持回调；
 - `declare fn` 的名字进入作用域，可直接调用，参数与返回值都参与检查。
 
 ```shya
@@ -937,6 +978,22 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 | `for k v of @entries(m)` | `for (const [k, v] of Object.entries(m)) { }` |
 | `case x { 1,2: f() 3: fallthrough default: g() }` | `switch (x) { case 1: case 2: f(); break; case 3: /*fallthrough*/ default: g(); break; }` |
 
+### 8.1 产物格式化阶段
+
+代码生成之后还有一个**格式化阶段**（`src/format.cpp`），它决定整个文件的版式。
+它只动空白，具体做四件事：
+
+1. 顶层语句之间插入一个空行，让文件读起来是一串声明；
+2. 去掉多余的空行（最多保留一个）与空语句 `;`，去掉行尾空白；
+3. 修掉 `@ts` 载荷自带分号造成的 `;;`；
+4. 文件末尾恰好一个换行。
+
+**它绝不改动 `@ts{…}` 原样载荷**：代码生成会给原样载荷的每一行打上标记，
+格式化阶段看到标记就把那行原样输出。字符串与模板字符串同理，因为它们在生成阶段
+已经是一个整体。
+
+要保留代码生成时的原始版式，加 `--no-format`（仍然会去掉标记并统一行尾）。
+
 ---
 
 ## 9. 诊断码表
@@ -946,10 +1003,10 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 | 前缀 | 阶段 | 例 |
 | --- | --- | --- |
 | `LEX` | 词法分析 | `LEX002` 无法识别的字符；`LEX006` 数学字面量缺少参数；`LEX009` 写了 `null`/`undefined` |
-| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN023`+ `declare` 相关 |
+| `SYN` | 语法分析 | `SYN001` 期望某个记号；`SYN011` `#名字` 出现在宏外；`SYN013` 对象字面量的键非法；`SYN023`+ `declare` 相关；`SYN030` 对象简写；`SYN031` 对象方法简写；`SYN032` 参数类型写了 `fn` |
 | `MOD` | 宏文件导入 | `MOD001` 找不到宏文件；`MOD002` 循环导入；`MOD003` 宏文件本身有错；`MOD004` 宏文件里导入了非 `.shya`；`MOD005` 该文件没有这个宏 |
 | `MAC` | 宏展开/脱糖 | `MAC014` 未定义的宏；`MAC015` 插槽类型不符；`MAC016` 缺少参数；`MAC020` `@when` 无分支匹配 |
-| `TC` | 类型检查 | `TC003` 类型不符；`TC006` 参数个数不符；`TC010` 未声明的标识符（警告）；`TC013` const 重赋值；`TC014` 宿主类型没有该成员（警告） |
+| `TC` | 类型检查 | `TC003` 类型不符；`TC006` 参数个数不符；`TC010` 未声明的标识符（警告）；`TC013` const 重赋值；`TC014` 宿主类型没有该成员（警告）；`TC015` 把字段当方法调用 |
 | `CGN` | 代码生成 | `CGN004` 无法处理的节点（编译器内部错误）；`CGN007` `.shya` 导入未被解析 |
 
 调试宏展开时可设置环境变量 `SHYA_DEBUG_WHEN=1`，编译器会在标准错误输出每次 `@when` 判定结果与宏展开的语句数。
@@ -970,6 +1027,9 @@ macro @safe_share(#x, #y, ...#slots: callExpr) {
 - **无位运算**（设计如此），需要时用 `@ts`。
 - **`@ts` 内的代码不参与类型检查**（但其中的 `#插槽` 替换是真实节点，会被检查）。
 - **箭头函数不提供专门语法**：请用 `fn` 声明或 `@ts`。
+- **函数不是一等公民**：没有函数类型（参数写 `fn` 报 `SYN032`）、没有函数字面量、
+  不能把函数作为参数传递，也没有 `.` 成员访问运算符可以取出函数引用。
+  `@ts{…}` 里的宿主函数不受此限，因为那里不经过 shya 的类型系统。
 - **`switch` 的 `default` 写在最前时会退化成一个普通块**（罕见，见 `docs/decisions.md`）。
 - **宏文件之间没有隔离**：宏名是全局的，具名导入只做「按需注册 + 依赖闭包」，
   不支持同名覆盖或命名空间。

@@ -35,7 +35,7 @@ rem /WX would make warnings fatal; kept off so a warning never blocks a build.
 cl %CFGFLAGS% /Fo"%ROOT%build\\" /Fd"%ROOT%build\\" /Fe"%ROOT%build\shya.exe" ^
    "%ROOT%src\main.cpp" "%ROOT%src\diag.cpp" "%ROOT%src\lexer.cpp" "%ROOT%src\parser.cpp" ^
    "%ROOT%src\macro.cpp" "%ROOT%src\modules.cpp" "%ROOT%src\typecheck.cpp" ^
-   "%ROOT%src\codegen.cpp" "%ROOT%src\stdlib.cpp" ^
+   "%ROOT%src\codegen.cpp" "%ROOT%src\format.cpp" "%ROOT%src\stdlib.cpp" ^
    /link /STACK:8388608
 if errorlevel 1 ( echo [build] FAILED & exit /b 1 )
 

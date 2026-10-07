@@ -275,6 +275,7 @@ private:
     bool expectPunct(const char* p, const char* ctx);
     bool expectKeyword(const char* k, const char* ctx);
     void errorHere(const std::string& code, const std::string& msg);
+    std::string parseParamAnnotation();
 
     // statements
     NodePtr parseStatement();
@@ -462,15 +463,18 @@ public:
     // Types recorded for identifiers; used by the code generator for `@len`-like
     // decisions and by the docs/debug dumps.
     const std::unordered_map<const Node*, TypePtr>& exprTypes() const { return exprTypes_; }
-    // Member accesses that resolved to a `declare`d *field*: these must not be
-    // emitted as calls (a method member does get a call).
-    const std::unordered_set<const Node*>& fieldAccesses() const { return fieldAccesses_; }
+    // Member accesses that are calls *without* parentheses.
+    //
+    // `x y` is a property read by default; it is a call only when the resolved member
+    // is a function with no required parameters (`p judge` -> `p.judge()`). Writing the
+    // parentheses yourself always makes it a call, with no type information needed.
+    const std::unordered_set<const Node*>& implicitCallMembers() const { return implicitCallMembers_; }
 
 private:
     DiagBag& bag_;
     std::unordered_map<const Node*, TypePtr> exprTypes_;
     std::unordered_map<std::string, TypePtr> declaredTypes_;
-    std::unordered_set<const Node*> fieldAccesses_;
+    std::unordered_set<const Node*> implicitCallMembers_;
     struct Scope;
     std::vector<std::shared_ptr<Scope>> scopes_;
 
@@ -499,13 +503,24 @@ struct CodegenOptions {
     bool stripTypes = true;
 };
 
+// Marks the start of each physical line of a verbatim `@ts{ … }` payload inside generated
+// code. `formatJavaScript` strips it and leaves the marked lines exactly as written.
+inline constexpr char kRawMark = '\x02';
+
+// The formatting stage that runs over the generated JavaScript (src/format.cpp).
+//
+// It only ever changes whitespace, and it never touches a line carrying `kRawMark`, so a
+// `@ts{ … }` payload reaches the output byte for byte. With `tidy` off it still strips the
+// marks and normalises line endings, but leaves the layout alone.
+std::string formatJavaScript(const std::string& src, int indentWidth, bool tidy);
+
 class Codegen {
 public:
     Codegen(DiagBag& bag, CodegenOptions opt = {});
     std::string generate(const NodePtr& program, const std::string& sourceFile);
-    // Member nodes here are `declare`d fields and must not be rendered as calls.
-    void setFieldAccesses(const std::unordered_set<const Node*>* fields) {
-        fieldAccesses_ = fields;
+    // Members that carry no parentheses but must still be emitted as calls.
+    void setImplicitCallMembers(const std::unordered_set<const Node*>* members) {
+        implicitCallMembers_ = members;
     }
 
 private:
@@ -520,7 +535,7 @@ private:
     int depth_ = 0;
     std::string file_;
     bool pendingExport_ = false;
-    const std::unordered_set<const Node*>* fieldAccesses_ = nullptr;
+    const std::unordered_set<const Node*>* implicitCallMembers_ = nullptr;
     std::vector<std::unordered_set<std::string>> scopes_;
     std::vector<std::unordered_map<std::string, int>> assignCounts_;
 
@@ -564,6 +579,7 @@ struct CompileOptions {
     bool dumpCoreAst = false;
     bool noTypecheck = false;
     bool warningsAsErrors = false;
+    bool noFormat = false;
     std::vector<std::string> includePaths;  // extra search roots for `import "*.shya"`
 };
 

@@ -1,0 +1,20 @@
+// 解析层拒绝的形态：对象字面量只允许键值对，函数不能作为参数传递。
+declare fn hostMap(xs: array<number>, f: fn): array<number>
+
+fn apply(cb: fn): void {
+  console log(1)
+}
+
+fn main() {
+  let a = 1
+
+  // 简写
+  let shorthand = { a }
+
+  // 方法简写
+  let method = { f() { return 1 } }
+
+  console log(shorthand, method)
+}
+
+main()

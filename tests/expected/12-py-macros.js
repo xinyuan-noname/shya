@@ -39,4 +39,5 @@ function main() {
     console.log("失败：" + "空序列应为假");
   }
 }
+
 main();

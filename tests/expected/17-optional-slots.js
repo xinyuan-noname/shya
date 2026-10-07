@@ -2,13 +2,23 @@
 // Target: ES2026. Do not edit by hand.
 
 console.log("filter ran");
+
 const stdqingjiao = { translation: "", trigger: undefined };
+
 console.log("with id");
+
 const hello = { v: "x" };
+
 console.log("what=" + "given");
+
 console.log(["given"]);
+
 console.log({ value: "given" });
+
 console.log("what=" + undefined);
+
 console.log([undefined]);
+
 console.log({ value: undefined });
+
 console.log("done");

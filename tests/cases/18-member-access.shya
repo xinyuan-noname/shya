@@ -1,0 +1,57 @@
+// 成员访问语义：`x y` 读属性，`x y()` 调用；
+// 声明成「无必填参数的方法」时，`x y` 仍然编译成调用。
+@ts{globalThis.p = {
+  name: "赵云",
+  hp: 4,
+  judge: () => ({ suit: "red" }),
+  recover: (n) => { console.log("recover " + n); },
+};}
+@ts{globalThis.o = { anything: 42 };}
+
+declare Card {
+  suit: string
+}
+
+declare Player {
+  name: string                 // 字段
+  hp: number
+  judge(): Card                // 无必填参数的方法
+  recover(n: number): void
+}
+
+fn main() {
+  let p: Player = @ts{globalThis.p}
+
+  // 字段 -> 属性读取
+  console log(p name, p hp)
+
+  // 无参方法省略括号 -> 仍是调用
+  let c: Card = p judge
+  console log(c suit)
+
+  // 写了括号 -> 调用
+  p recover(2)
+
+  // 类型未知 -> 也是属性读取
+  let o = @ts{globalThis.o}
+  console log(o anything)
+
+  // 内建类型上的属性
+  let xs = [1, 2, 3]
+  console log(xs length)
+  xs push(4)
+  console log(xs length)
+
+  // 对象字面量：标识符键、字符串键、嵌套，只能键值对
+  let cfg = { speed: 3, "max hp": 10, nested: { deep: [1, 2] } }
+  console log(cfg speed, cfg nested, cfg)
+
+  // 对象字面量作为实参与返回值
+  console log(pass({ ok: true }))
+}
+
+fn pass(v: object): object {
+  return v
+}
+
+main()

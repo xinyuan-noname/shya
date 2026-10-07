@@ -1,0 +1,13 @@
+D:\project\shya\tests\cases\20-literal-errors.shya:2:42: error: 参数类型不能是函数类型 `fn`：shya 不支持把函数作为参数传递（回调） [SYN032]
+  declare fn hostMap(xs: array<number>, f: fn): array<number>
+                                           ^
+D:\project\shya\tests\cases\20-literal-errors.shya:4:14: error: 参数类型不能是函数类型 `fn`：shya 不支持把函数作为参数传递（回调） [SYN032]
+  fn apply(cb: fn): void {
+               ^
+D:\project\shya\tests\cases\20-literal-errors.shya:12:21: error: 对象字面量只允许键值对，不支持简写；请写成 `a: a` [SYN030]
+    let shorthand = { a }
+                      ^
+D:\project\shya\tests\cases\20-literal-errors.shya:15:18: error: 对象字面量只允许键值对，不支持方法简写；请写成 `f: @ts{(…参数…) => { … }}` [SYN031]
+    let method = { f() { return 1 } }
+                   ^
+shya: build failed with 4 error(s)

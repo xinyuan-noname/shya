@@ -1,0 +1,10 @@
+D:\project\shya\tests\cases\19-member-errors.shya:11:17: error: 字段 `hp` 不是方法，不能调用（写成属性访问 `hp` 即可） [TC015]
+    console log(p hp())
+                  ^
+D:\project\shya\tests\cases\19-member-errors.shya:14:5: error: 调用 `recover` 的参数个数不匹配：期望 1 个，实际 0 个 [TC006]
+    p recover
+      ^
+D:\project\shya\tests\cases\19-member-errors.shya:17:17: warning: 类型 `Player` 没有声明成员 `missingMember`（可用 `declare Player { missingMember: … }` 补充声明） [TC014]
+    console log(p missingMember)
+                  ^
+shya: build failed with 2 error(s)
